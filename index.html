@@ -134,6 +134,8 @@ body{font-family:'Geist',-apple-system,sans-serif;background:var(--bg-1);color:v
 .note-row-copy-btn.copied{border-color:var(--green);color:var(--green);background:var(--green-soft)}
 .note-row-copy-btn[data-nocode]{opacity:.2;cursor:default;pointer-events:none}
 .note-row-date{font-family:'Geist Mono',monospace;font-size:11.5px;color:var(--text-3);flex-shrink:0;white-space:nowrap}
+.note-row-meta{display:flex;align-items:center;gap:5px;flex-shrink:0}
+.note-row-author{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:white;flex-shrink:0;cursor:default}
 
 /* EMPTY */
 .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;gap:10px}
@@ -418,12 +420,17 @@ body.modal-open{overflow:hidden}
     margin-top:4px!important;
   }
 
-  /* 2. Footer: Zrušit vlevo, Uložit vpravo */
-  .modal-footer{justify-content:space-between!important}
-  #footer-spacer-left{display:none!important}
+  /* 2. Footer na mobilu: Zrušit vlevo, Uložit vpravo, zbytek schovaný */
+  .modal-footer{flex-wrap:nowrap!important}
+  .modal-footer .spacer{flex:1!important}
+  #archive-btn{display:none!important}
+  #history-btn{display:none!important}
+  #delete-note-btn{display:none!important}
+  .note-author-info{display:none!important}
+  .kbd{display:none!important}
   #footer-cancel-btn{order:1}
-  .btn-archive{display:none!important}
-  #footer-save-btn{order:3;margin-left:auto}
+  .modal-footer .spacer{order:2}
+  #footer-save-btn{order:3}
 
   /* 5. Note row title – více doleva, skryj icon */
   .note-row-icon{display:none!important}
@@ -581,6 +588,18 @@ body.modal-open{overflow:hidden}
   </div>
   <div class="content" id="main-content"></div>
 </div>
+<!-- HISTORY PANEL -->
+<div id="history-panel" style="display:none;position:fixed;inset:0;z-index:800;display:none">
+  <div id="history-overlay" onclick="closeHistory()" style="position:absolute;inset:0;background:rgba(0,0,0,.3)"></div>
+  <div id="history-drawer" style="position:absolute;right:0;top:0;height:100%;width:min(440px,100vw);background:var(--bg);box-shadow:-4px 0 24px rgba(0,0,0,.12);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s ease">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0">
+      <span style="font-size:15px;font-weight:600;flex:1">Historie úprav</span>
+      <button onclick="closeHistory()" style="width:32px;height:32px;border:none;background:var(--bg-2);border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center">✕</button>
+    </div>
+    <div id="history-list" style="flex:1;overflow-y:auto;padding:12px"></div>
+  </div>
+</div>
+
 <!-- Mobile FAB -->
 <button id="mobile-fab" onclick="openNoteModal()" aria-label="Nový prompt">+</button>
 
@@ -621,16 +640,17 @@ body.modal-open{overflow:hidden}
     </div>
     <div class="editor-scroll" id="editor-scroll"></div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" id="footer-cancel-btn" onclick="closeNoteModal()">Zrušit</button>
-      <div class="spacer" id="footer-spacer-left"></div>
-      <button class="btn btn-primary" id="footer-save-btn" onclick="saveNote()">Uložit</button>
-      <span class="kbd">Ctrl+S</span>
+      <button class="btn btn-archive" id="archive-btn" onclick="toggleArchive()">🗄 Archivovat</button>
+      <button class="btn btn-ghost" id="history-btn" onclick="openHistory()" style="display:none">🕐 Historie</button>
+      <button class="btn btn-danger" id="delete-note-btn" onclick="deleteNote()" style="display:none">🗑 Smazat</button>
       <div class="note-author-info" id="note-author-info" style="display:none">
         <div class="note-author-dot" id="note-author-dot"></div>
         <span id="note-author-name"></span>
       </div>
-      <button class="btn btn-archive" id="archive-btn" onclick="toggleArchive()">🗄 Archivovat</button>
-      <button class="btn btn-danger" id="delete-note-btn" onclick="deleteNote()" style="display:none">🗑 Smazat</button>
+      <div class="spacer"></div>
+      <span class="kbd">Ctrl+S</span>
+      <button class="btn btn-ghost" id="footer-cancel-btn" onclick="closeNoteModal()">Zrušit</button>
+      <button class="btn btn-primary" id="footer-save-btn" onclick="saveNote()">Uložit</button>
     </div>
   </div>
 </div>
@@ -1099,7 +1119,10 @@ function noteRow(n) {
       ${authorAv}
     </div>
     <button class="note-row-copy-btn" onclick="quickCopyCode('${n.id}',this)" title="Kopírovat kód" ${!hasCode?'data-nocode="1"':''}>&lt;/&gt;</button>
-    <span class="note-row-date">${formatDate(n.updated)}</span>
+    <div class="note-row-meta">
+      ${n.createdBy ? `<span class="note-row-author" style="background:${allUsers[n.createdBy]?.color||strColor(n.createdBy||'')}" title="${allUsers[n.createdBy]?.name||''}">${initials(allUsers[n.createdBy]?.name||'?')}</span>` : ''}
+      <span class="note-row-date">${formatDate(n.updated)}</span>
+    </div>
   </div>`;
 }
 
@@ -1123,22 +1146,28 @@ function quickCopyCode(noteId,btn) {
 // ══════════════════════════════════════════
 //  NOTE MODAL
 // ══════════════════════════════════════════
-function openNoteModal(id=null) {
+function openNoteModal(id=null, override=null) {
   ui.editingNoteId=id; ui.editingNoteTagIds=[]; ui.editingArchived=false; ui.editingNoteFolderId=null; ui.editingVisibility='private';
   editorBlocks=[];
   document.getElementById('note-overlay').classList.add('open');
+  document.body.classList.add('modal-open');
   const authorInfo=document.getElementById('note-author-info');
   authorInfo.style.display='none';
+  const histBtn=document.getElementById('history-btn');
 
   if(id) {
     const note=state.notes.find(n=>n.id===id);
-    document.getElementById('note-title').value=note.title;
+    // override = pro restore z historie
+    const title = override?.title ?? note.title;
+    const blocks = override?.blocks ?? note.blocks;
+    document.getElementById('note-title').value=title;
     ui.editingNoteTagIds=[...(note.tagIds||[])];
     ui.editingArchived=note.archived||false;
     ui.editingNoteFolderId=note.folderId||null;
     ui.editingVisibility=note.visibility||'private';
-    editorBlocks=(note.blocks||[]).map(b=>({...b,_id:uid()}));
+    editorBlocks=(blocks||[]).map(b=>({...b,_id:uid()}));
     document.getElementById('delete-note-btn').style.display='flex';
+    if(histBtn) histBtn.style.display='flex';
     // show author if not own
     if(note.createdBy && note.createdBy!==currentUser?.id) {
       const u=allUsers[note.createdBy]||{name:'Neznámý',color:'#9ca3af'};
@@ -1151,6 +1180,7 @@ function openNoteModal(id=null) {
     document.getElementById('note-title').value='';
     editorBlocks=[{_id:uid(),type:'text',content:''}];
     document.getElementById('delete-note-btn').style.display='none';
+    if(histBtn) histBtn.style.display='none';
     if(!['all','mine','shared','archive'].includes(ui.currentView)&&!ui.currentView.startsWith('tag:'))
       ui.editingNoteFolderId=ui.currentView;
     if(ui.currentView.startsWith('tag:'))
@@ -1163,7 +1193,7 @@ function openNoteModal(id=null) {
   setTimeout(()=>document.getElementById('note-title').focus(),60);
 }
 
-function closeNoteModal() { document.getElementById('note-overlay').classList.remove('open'); document.querySelectorAll('.select-dropdown').forEach(d=>d.classList.remove('open')); }
+function closeNoteModal() { document.getElementById('note-overlay').classList.remove('open'); document.body.classList.remove('modal-open'); document.querySelectorAll('.select-dropdown').forEach(d=>d.classList.remove('open')); }
 function handleNoteOverlay(e){ if(e.target===document.getElementById('note-overlay')) closeNoteModal(); }
 function toggleArchive(){ ui.editingArchived=!ui.editingArchived; updateArchiveBtn(); }
 function updateArchiveBtn(){ const b=document.getElementById('archive-btn'); b.className=`btn btn-archive ${ui.editingArchived?'active':''}`; b.innerHTML=ui.editingArchived?'🗄 Archivováno':'🗄 Archivovat'; }
@@ -1266,6 +1296,19 @@ async function saveNote() {
   closeNoteModal();
   toast('Ukládám…');
   try {
+    // Ulož snapshot do historie (před upsert)
+    if(ui.editingNoteId) {
+      const prevNote = state.notes.find(n=>n.id===noteId);
+      if(prevNote) {
+        sbUpsert('prompty_history',[{
+          id:uid(), note_id:noteId,
+          title:prevNote.title||'',
+          snapshot_blocks:JSON.stringify(prevNote.blocks||[]),
+          edited_by:currentUser.id,
+          created_at:new Date().toISOString()
+        }]).catch(()=>{});  // tiché selhání pokud tabulka neexistuje
+      }
+    }
     await sbUpsert('prompty_notes',[row]);
     await sbPull();
     toast('Uloženo ✓');
@@ -1369,6 +1412,90 @@ async function sbPull() {
 }
 
 async function sbSync() { return sbPull(); }
+
+// ══════════════════════════════════════════
+//  HISTORY
+// ══════════════════════════════════════════
+let historyNoteId = null;
+
+async function openHistory() {
+  historyNoteId = ui.editingNoteId;
+  if (!historyNoteId) return;
+  const panel = document.getElementById('history-panel');
+  const drawer = document.getElementById('history-drawer');
+  const list = document.getElementById('history-list');
+  panel.style.display = 'block';
+  setTimeout(() => drawer.style.transform = 'translateX(0)', 10);
+  list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-3)">Načítám…</div>';
+  try {
+    const rows = await sbFetch(`prompty_history?note_id=eq.${historyNoteId}&order=created_at.desc&select=*&limit=50`);
+    if (!rows || !rows.length) {
+      list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-3)">Žádná historie k dispozici</div>';
+      return;
+    }
+    // Načti profily
+    const unknownIds = [...new Set(rows.map(r=>r.edited_by).filter(id=>id&&!allUsers[id]))];
+    if (unknownIds.length) {
+      try {
+        const profiles = await sbFetch(`prompty_profiles?id=in.(${unknownIds.map(i=>`"${i}"`).join(',')})`);
+        (profiles||[]).forEach(p => { allUsers[p.id] = {name:p.display_name, color:strColor(p.id)}; });
+      } catch(e){}
+    }
+    list.innerHTML = rows.map((row, idx) => {
+      const user = allUsers[row.edited_by] || {name:'Neznámý', color:'#9ca3af'};
+      const date = new Date(row.created_at);
+      const dateStr = `${date.getDate()}.${date.getMonth()+1}.${date.getFullYear()} ${date.getHours()}:${String(date.getMinutes()).padStart(2,'0')}`;
+      const isFirst = idx === 0;
+      return `<div style="border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:${isFirst?'var(--blue-soft)':'var(--bg-1)'}">
+          <div style="width:28px;height:28px;border-radius:50%;background:${user.color};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;flex-shrink:0">${initials(user.name)}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:500;color:var(--text)">${user.name}</div>
+            <div style="font-size:11.5px;color:var(--text-3)">${dateStr}${isFirst?' · aktuální verze':''}</div>
+          </div>
+          ${!isFirst ? `<button onclick="restoreHistory('${row.id}')" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:5px;background:white;cursor:pointer;color:var(--text-2);font-family:'Geist',sans-serif;white-space:nowrap">↩ Obnovit</button>` : ''}
+        </div>
+        <div style="padding:8px 12px;font-size:12.5px;color:var(--text-2);border-top:1px solid var(--border);background:white">
+          <span style="font-weight:500">${row.title||'Bez názvu'}</span>
+          <span style="color:var(--text-3);margin-left:8px">${summarizeBlocks(row.snapshot_blocks)}</span>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    list.innerHTML = `<div style="padding:20px;text-align:center;color:var(--red)">Chyba: ${e.message}<br><small>Zkontroluj že tabulka prompty_history existuje v Supabase</small></div>`;
+  }
+}
+
+function summarizeBlocks(blocks) {
+  try {
+    const b = typeof blocks === 'string' ? JSON.parse(blocks) : (blocks||[]);
+    const text = b.map(bl => bl.type==='code' ? '[kód]' : (bl.content||'').replace(/<[^>]+>/g,'').trim()).filter(Boolean).join(' ');
+    return text.length > 80 ? text.slice(0,80)+'…' : (text || '(prázdné)');
+  } catch(e) { return ''; }
+}
+
+function closeHistory() {
+  const drawer = document.getElementById('history-drawer');
+  drawer.style.transform = 'translateX(100%)';
+  setTimeout(() => { document.getElementById('history-panel').style.display='none'; }, 260);
+}
+
+async function restoreHistory(historyId) {
+  if (!confirm('Obnovit tuto verzi poznámky? Aktuální verze bude uložena do historie.')) return;
+  try {
+    const rows = await sbFetch(`prompty_history?id=eq.${historyId}&select=*`);
+    const row = rows?.[0];
+    if (!row) throw new Error('Verze nenalezena');
+    // Otevři modal s obnovenou verzí
+    closeHistory();
+    const note = state.notes.find(n=>n.id===row.note_id);
+    if (!note) return;
+    // Přepiš lokálně a otevři editor
+    const restoredBlocks = typeof row.snapshot_blocks==='string' ? JSON.parse(row.snapshot_blocks) : (row.snapshot_blocks||[]);
+    openNoteModal(note.id, { title: row.title, blocks: restoredBlocks });
+    toast('Verze načtena – zkontroluj a ulož');
+  } catch(e) { toast('Chyba obnovení: '+e.message); }
+}
 
 // ══════════════════════════════════════════
 //  MOBILE NOTE VIEW
