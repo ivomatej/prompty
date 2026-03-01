@@ -819,6 +819,13 @@ let sb = { url:'', key:'' };
 //  HELPERS
 // ══════════════════════════════════════════
 function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+// ── HTML escape (XSS ochrana) ──
+function esc(s) {
+  if(s==null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;');
+}
+
+
 function extractPreview(blocks) {
   if(!blocks||!blocks.length) return '';
   for(const b of blocks) {
@@ -849,7 +856,7 @@ function initials(name) { if(!name) return '?'; const p=name.trim().split(/\s+/)
 
 function avatarHtml(userId, size=20) {
   const u = allUsers[userId]||{name:'?',color:'#9ca3af'};
-  return `<div class="note-author-avatar" style="width:${size}px;height:${size}px;background:${u.color};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:${Math.floor(size*.45)}px;font-weight:700;color:white;flex-shrink:0" title="${u.name}">${initials(u.name)}</div>`;
+  return `<div class="note-author-avatar" style="width:${size}px;height:${size}px;background:${u.color};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:${Math.floor(size*.45)}px;font-weight:700;color:white;flex-shrink:0" title="${esc(u.name)}">${initials(u.name)}</div>`;
 }
 
 // ══════════════════════════════════════════
@@ -905,7 +912,7 @@ let loginMode = 'login'; // 'login' | 'register'
 
 function loadSbConfig() {
   const c = localStorage.getItem('pn_sb_cfg');
-  if (c) { const p=JSON.parse(c); sb.url=p.url||''; sb.key=p.key||''; }
+  if (c) { try { const p=JSON.parse(c); sb.url=p.url||''; sb.key=p.key||''; } catch(e){ localStorage.removeItem('pn_sb_cfg'); } }
 }
 
 function updateLoginSbUI() {
@@ -945,6 +952,7 @@ function toggleLoginMode() {
   document.getElementById('login-toggle-text').textContent = isReg?'Máš účet?':'Nemáš účet?';
   document.getElementById('login-toggle-link').textContent = isReg?'Přihlásit se':'Registrovat se';
   document.getElementById('login-err').classList.remove('show');
+  document.getElementById('login-pass').value='';
 }
 
 function showLoginErr(msg) {
@@ -1373,14 +1381,14 @@ function noteRow(n) {
   return `<div class="note-row ${n.archived?'archived':''}">
     <div class="note-row-title-area" onclick="openNoteView('${n.id}')">
       <span class="note-row-icon">${hasCode?'</>':'#'}</span>
-      <span class="note-row-title">${n.title||'Bez názvu'}</span>
-      <span class="note-row-preview desktop-only">${extractPreview(n.blocks)}</span>
+      <span class="note-row-title">${esc(n.title)||'Bez názvu'}</span>
+      <span class="note-row-preview desktop-only">${esc(extractPreview(n.blocks))}</span>
       <div class="note-row-tags">${tagChips}</div>
       ${visBadge}
     </div>
     <button class="note-row-copy-btn" onclick="quickCopyCode('${n.id}',this)" title="Kopírovat kód" ${!hasCode?'data-nocode="1"':''}>&lt;/&gt;</button>
     <div class="note-row-meta">
-      ${n.createdBy ? `<span class="note-row-author" style="background:${allUsers[n.createdBy]?.color||strColor(n.createdBy||'')}" title="${allUsers[n.createdBy]?.name||''}">${initials(allUsers[n.createdBy]?.name||'?')}</span>` : ''}
+      ${n.createdBy ? `<span class="note-row-author" style="background:${allUsers[n.createdBy]?.color||strColor(n.createdBy||'')}" title="${esc(allUsers[n.createdBy]?.name||'')}">${initials(allUsers[n.createdBy]?.name||'?')}</span>` : ''}
       <span class="note-row-date">${formatDate(n.updated)}</span>
     </div>
   </div>`;
@@ -1417,6 +1425,7 @@ function openNoteModal(id=null, override=null) {
 
   if(id) {
     const note=state.notes.find(n=>n.id===id);
+    if(!note) { console.warn('openNoteModal: note not found', id); return; }
     // override = pro restore z historie
     const title = override?.title ?? note.title;
     const blocks = override?.blocks ?? note.blocks;
@@ -1493,7 +1502,7 @@ function renderFolderSelectDD() {
       <div class="fd-sep"></div>${buildFolderItems(null,0)}
     </div>`;
 }
-function buildFolderItems(pid,depth){ return state.folders.filter(f=>(f.parentId||null)===pid).map(f=>`<div class="fd-item ${ui.editingNoteFolderId===f.id?'selected':''}" style="padding-left:${10+depth*14}px" onclick="selectFolder('${f.id}')">📁 ${f.name}</div>${buildFolderItems(f.id,depth+1)}`).join(''); }
+function buildFolderItems(pid,depth){ return state.folders.filter(f=>(f.parentId||null)===pid).map(f=>`<div class="fd-item ${ui.editingNoteFolderId===f.id?'selected':''}" style="padding-left:${10+depth*14}px" onclick="selectFolder('${f.id}')">📁 ${esc(f.name)}</div>${buildFolderItems(f.id,depth+1)}`).join(''); }
 function selectFolder(id){ ui.editingNoteFolderId=id; updateFolderSelectBtn(); renderFolderSelectDD(); document.getElementById('folder-dropdown').classList.remove('open'); }
 function updateFolderSelectBtn(){ const btn=document.getElementById('folder-select-btn'),lbl=document.getElementById('folder-select-label'); if(ui.editingNoteFolderId){const f=state.folders.find(x=>x.id===ui.editingNoteFolderId);lbl.textContent=f?f.name:'Složka';btn.classList.add('has-val');}else{lbl.textContent='Složka';btn.classList.remove('has-val');} }
 
@@ -1502,10 +1511,10 @@ function renderTagSelectDD() {
     <div class="dd-search-wrap"><input class="dd-search" placeholder="Hledat štítek…" oninput="filterDD('tag-dropdown',this.value)" onclick="event.stopPropagation()"></div>
     <div class="dd-list">${buildTagItems(null,0)}</div>`;
 }
-function buildTagItems(pid,depth){ return state.tags.filter(t=>(t.parentId||null)===pid).map(t=>`<div class="fd-item ${(ui.editingNoteTagIds||[]).includes(t.id)?'selected':''}" style="padding-left:${10+depth*14}px" onclick="toggleTagOnNote('${t.id}')">${(ui.editingNoteTagIds||[]).includes(t.id)?'✓ ':''} #${t.name}</div>${buildTagItems(t.id,depth+1)}`).join(''); }
+function buildTagItems(pid,depth){ return state.tags.filter(t=>(t.parentId||null)===pid).map(t=>`<div class="fd-item ${(ui.editingNoteTagIds||[]).includes(t.id)?'selected':''}" style="padding-left:${10+depth*14}px" onclick="toggleTagOnNote('${t.id}')">${(ui.editingNoteTagIds||[]).includes(t.id)?'✓ ':''} #${esc(t.name)}</div>${buildTagItems(t.id,depth+1)}`).join(''); }
 function toggleTagOnNote(id){ const arr=ui.editingNoteTagIds,idx=arr.indexOf(id); if(idx>=0)arr.splice(idx,1); else arr.push(id); renderTagChips(); renderTagSelectDD(); updateTagSelectBtn(); }
 function updateTagSelectBtn(){ const btn=document.getElementById('tag-select-btn'),lbl=document.getElementById('tag-select-label'); if(ui.editingNoteTagIds.length){const names=ui.editingNoteTagIds.map(id=>{const t=state.tags.find(x=>x.id===id);return t?t.name:''}).filter(Boolean);lbl.textContent=names.length===1?names[0]:`${names.length} štítků`;btn.classList.add('has-val');}else{lbl.textContent='Štítek';btn.classList.remove('has-val');} }
-function renderTagChips(){ document.getElementById('tags-wrap').innerHTML=(ui.editingNoteTagIds||[]).map(id=>{const t=state.tags.find(x=>x.id===id);return t?`<button class="tag-chip" onclick="toggleTagOnNote('${id}')">#${t.name} ×</button>`:''}).join(''); }
+function renderTagChips(){ document.getElementById('tags-wrap').innerHTML=(ui.editingNoteTagIds||[]).map(id=>{const t=state.tags.find(x=>x.id===id);return t?`<button class="tag-chip" onclick="toggleTagOnNote('${id}')">#${esc(t.name)} ×</button>`:''}).join(''); }
 
 document.addEventListener('click',(e)=>{ if(!e.target.closest('.select-wrap')&&!e.target.closest('.select-dropdown')) document.querySelectorAll('.select-dropdown').forEach(d=>d.classList.remove('open')); });
 
@@ -1602,8 +1611,56 @@ function openItemModal(type,parentId,asChild=false){ ui.itemType=type;ui.itemEdi
 function editItem(type,id){ ui.itemType=type;ui.itemEditingId=id;ui.itemParentId=null; const list=type==='folder'?state.folders:state.tags; const item=list.find(x=>x.id===id); document.getElementById('item-name-input').value=item.name; document.getElementById('item-name-input').placeholder=type==='folder'?'Název složky...':'Název štítku...'; const parent=item.parentId?list.find(x=>x.id===item.parentId):null; document.getElementById('item-parent-display').value=parent?`${type==='folder'?'Podsložka':'Podštítek'} v: ${parent.name}`:(type==='folder'?'Kořenová složka':'Kořenový štítek'); document.getElementById('item-delete-btn').style.display='flex'; document.getElementById('item-save-btn').textContent='Uložit'; document.getElementById('item-overlay').classList.add('open'); }
 function closeItemModal(){document.getElementById('item-overlay').classList.remove('open');}
 function handleItemOverlay(e){if(e.target===document.getElementById('item-overlay'))closeItemModal();}
-function saveItem(){ const name=document.getElementById('item-name-input').value.trim(); if(!name) return; const list=ui.itemType==='folder'?state.folders:state.tags; if(ui.itemEditingId){list.find(x=>x.id===ui.itemEditingId).name=name;toast('Přejmenováno');}else{const ni={id:uid(),name,parentId:ui.itemParentId||null};list.push(ni);if(ui.itemParentId){if(ui.itemType==='folder')ui.expandedFolders.add(ui.itemParentId);else ui.expandedTags.add(ui.itemParentId);}toast(ui.itemType==='folder'?'Složka vytvořena':'Štítek vytvořen');} saveState(); if(ui.itemType==='folder')renderFolderTree();else renderTagTree(); closeItemModal(); sbPull().catch(e=>console.error(e)); }
-function deleteItem(){ if(!ui.itemEditingId||!confirm('Smazat?')) return; if(ui.itemType==='folder'){const ids=getAllSubIds(ui.itemEditingId,state.folders);state.folders=state.folders.filter(f=>!ids.has(f.id));state.notes.forEach(n=>{if(ids.has(n.folderId))n.folderId=null;});if(ids.has(ui.currentView))navTo('all');renderFolderTree();}else{const ids=getAllSubIds(ui.itemEditingId,state.tags);state.tags=state.tags.filter(t=>!ids.has(t.id));state.notes.forEach(n=>{n.tagIds=(n.tagIds||[]).filter(id=>!ids.has(id));});if(ui.currentView.startsWith('tag:')&&ids.has(ui.currentView.slice(4)))navTo('all');renderTagTree();} saveState();renderNotes();closeItemModal();toast('Smazáno');sbPull().catch(e=>console.error(e)); }
+async function saveItem(){
+  const name=document.getElementById('item-name-input').value.trim(); if(!name) return;
+  const isFolder=ui.itemType==='folder';
+  const list=isFolder?state.folders:state.tags;
+  const table=isFolder?'prompty_folders':'prompty_tags';
+  let itemId;
+  if(ui.itemEditingId){
+    const item=list.find(x=>x.id===ui.itemEditingId);
+    item.name=name; itemId=item.id;
+    toast('Přejmenováno');
+  } else {
+    itemId=uid();
+    const ni={id:itemId,name,parentId:ui.itemParentId||null};
+    list.push(ni);
+    if(ui.itemParentId){if(isFolder)ui.expandedFolders.add(ui.itemParentId);else ui.expandedTags.add(ui.itemParentId);}
+    toast(isFolder?'Složka vytvořena':'Štítek vytvořen');
+  }
+  saveState();
+  if(isFolder)renderFolderTree();else renderTagTree();
+  closeItemModal();
+  // Ulož do Supabase
+  const item=list.find(x=>x.id===itemId);
+  if(item) {
+    sbUpsert(table,[{id:item.id, name:item.name, parent_id:item.parentId||null}])
+      .then(()=>sbPull()).catch(e=>console.error('saveItem sync:',e));
+  }
+}
+async function deleteItem(){
+  if(!ui.itemEditingId||!confirm('Smazat?')) return;
+  const isFolder=ui.itemType==='folder';
+  const table=isFolder?'prompty_folders':'prompty_tags';
+  if(isFolder){
+    const ids=getAllSubIds(ui.itemEditingId,state.folders);
+    state.folders=state.folders.filter(f=>!ids.has(f.id));
+    state.notes.forEach(n=>{if(ids.has(n.folderId))n.folderId=null;});
+    if(ids.has(ui.currentView))navTo('all');
+    renderFolderTree();
+    // Smaž z DB
+    for(const id of ids) sbFetch(`${table}?id=eq.${id}`,{method:'DELETE',headers:{Prefer:'return=minimal'}}).catch(()=>{});
+  } else {
+    const ids=getAllSubIds(ui.itemEditingId,state.tags);
+    state.tags=state.tags.filter(t=>!ids.has(t.id));
+    state.notes.forEach(n=>{n.tagIds=(n.tagIds||[]).filter(id=>!ids.has(id));});
+    if(ui.currentView.startsWith('tag:')&&ids.has(ui.currentView.slice(4)))navTo('all');
+    renderTagTree();
+    for(const id of ids) sbFetch(`${table}?id=eq.${id}`,{method:'DELETE',headers:{Prefer:'return=minimal'}}).catch(()=>{});
+  }
+  saveState();renderNotes();closeItemModal();toast('Smazáno');
+  sbPull().catch(e=>console.error(e));
+}
 function getAllSubIds(id,list){const ids=new Set([id]);list.filter(x=>x.parentId===id).forEach(c=>getAllSubIds(c.id,list).forEach(i=>ids.add(i)));return ids;}
 
 // ══════════════════════════════════════════
@@ -1625,7 +1682,43 @@ function exportCSV(){
 }
 function fmtISO(ts){return ts?new Date(ts).toISOString():'';}
 function dlFile(name,content,type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([content],{type})); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); }
-function importJSON(e){ const file=e.target.files[0]; if(!file) return; const reader=new FileReader(); reader.onload=ev=>{try{const d=JSON.parse(ev.target.result); if(!d.notes)throw new Error('Neplatný formát'); if(!confirm(`Import přepíše data (${d.notes.length} promptů). Pokračovat?`)) return; state.folders=d.folders||[]; state.tags=d.tags||[]; state.notes=d.notes||[]; saveState();renderFolderTree();renderTagTree();renderNotes(); toast(`Importováno ${state.notes.length} promptů ✓`);}catch(err){alert('Chyba importu: '+err.message);}}; reader.readAsText(file); e.target.value=''; }
+function importJSON(e){
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const d=JSON.parse(ev.target.result);
+      if(!d.notes)throw new Error('Neplatný formát');
+      if(!confirm(`Import nahraje ${d.notes.length} promptů do Supabase. Existující záznamy se stejným ID budou přepsány. Pokračovat?`)) return;
+      // Nahrát do Supabase (po dávkách kvůli limitu URL)
+      const batchUpsert = async () => {
+        if(d.folders?.length) await sbUpsert('prompty_folders', d.folders.map(f=>({id:f.id,name:f.name,parent_id:f.parentId||null})));
+        if(d.tags?.length) await sbUpsert('prompty_tags', d.tags.map(t=>({id:t.id,name:t.name,parent_id:t.parentId||null})));
+        // Notes po 50
+        const notes = d.notes||[];
+        for(let i=0;i<notes.length;i+=50){
+          const batch=notes.slice(i,i+50).map(n=>({
+            id:n.id, title:n.title||'', blocks:JSON.stringify(n.blocks||[]),
+            tag_ids:JSON.stringify(n.tagIds||[]), folder_id:n.folderId||null,
+            archived:n.archived||false, visibility:n.visibility||'private',
+            created_by:n.createdBy||currentUser.id, created:n.created||Date.now(), updated:n.updated||Date.now()
+          }));
+          await sbUpsert('prompty_notes', batch);
+        }
+        await sbPull();
+        toast(`Importováno ${notes.length} promptů ✓`);
+      };
+      batchUpsert().catch(err=>{
+        // Fallback: lokální import
+        state.folders=d.folders||[]; state.tags=d.tags||[]; state.notes=d.notes||[];
+        saveState();renderFolderTree();renderTagTree();renderNotes();
+        toast('Importováno lokálně (sync selhal)');
+        console.error('import sync error:',err);
+      });
+    }catch(err){alert('Chyba importu: '+err.message);}
+  };
+  reader.readAsText(file); e.target.value='';
+}
 
 // ══════════════════════════════════════════
 //  SUPABASE SYNC
@@ -1654,8 +1747,8 @@ async function sbPull() {
   state.tags=(tags||[]).map(t=>({id:t.id,name:t.name,parentId:t.parent_id||null}));
   state.notes=(allNotes||[]).map(n=>({
     id:n.id, title:n.title||'',
-    blocks:typeof n.blocks==='string'?JSON.parse(n.blocks):(n.blocks||[]),
-    tagIds:typeof n.tag_ids==='string'?JSON.parse(n.tag_ids):(n.tag_ids||[]),
+    blocks:typeof n.blocks==='string'?(()=>{try{return JSON.parse(n.blocks);}catch(e){return [];}})():(n.blocks||[]),
+    tagIds:typeof n.tag_ids==='string'?(()=>{try{return JSON.parse(n.tag_ids);}catch(e){return [];}})():(n.tag_ids||[]),
     folderId:n.folder_id||null, archived:n.archived||false,
     visibility:n.visibility||'private', createdBy:n.created_by||null,
     created:n.created||null, updated:n.updated||null
@@ -1710,19 +1803,19 @@ async function openHistory() {
         <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:${isFirst?'var(--blue-soft)':'var(--bg-1)'}">
           <div style="width:28px;height:28px;border-radius:50%;background:${user.color};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;flex-shrink:0">${initials(user.name)}</div>
           <div style="flex:1;min-width:0">
-            <div style="font-size:13px;font-weight:500;color:var(--text)">${user.name}</div>
+            <div style="font-size:13px;font-weight:500;color:var(--text)">${esc(user.name)}</div>
             <div style="font-size:11.5px;color:var(--text-3)">${dateStr}${isFirst?' · aktuální verze':''}</div>
           </div>
           ${!isFirst ? `<button onclick="restoreHistory('${row.id}')" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:5px;background:white;cursor:pointer;color:var(--text-2);font-family:'Geist',sans-serif;white-space:nowrap">↩ Obnovit</button>` : ''}
         </div>
         <div style="padding:8px 12px;font-size:12.5px;color:var(--text-2);border-top:1px solid var(--border);background:white">
-          <span style="font-weight:500">${row.title||'Bez názvu'}</span>
+          <span style="font-weight:500">${esc(row.title)||'Bez názvu'}</span>
           <span style="color:var(--text-3);margin-left:8px">${summarizeBlocks(row.snapshot_blocks)}</span>
         </div>
       </div>`;
     }).join('');
   } catch(e) {
-    list.innerHTML = `<div style="padding:20px;text-align:center;color:var(--red)">Chyba: ${e.message}<br><small>Zkontroluj že tabulka prompty_history existuje v Supabase</small></div>`;
+    list.innerHTML = `<div style="padding:20px;text-align:center;color:var(--red)">Chyba: ${esc(e.message)}<br><small>Zkontroluj že tabulka prompty_history existuje v Supabase</small></div>`;
   }
 }
 
@@ -1792,11 +1885,11 @@ function openNoteView(id) {
     } else {
       // Code block with big copy button
       const wrap = document.createElement('div');
-      wrap.style.cssText = 'margin-bottom:14px;border-radius:10px;overflow:hidden;border:1px solid #d1d5db';
+      wrap.style.cssText = 'margin-bottom:14px;border-radius:10px;overflow:hidden;border:1px solid var(--border)';
       const header = document.createElement('div');
-      header.style.cssText = 'background:#f3f4f6;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e5e7eb';
+      header.style.cssText = 'background:var(--bg-2);padding:8px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)';
       const lang = document.createElement('span');
-      lang.style.cssText = 'font-family:"Geist Mono",monospace;font-size:12px;color:#6b7280';
+      lang.style.cssText = 'font-family:"Geist Mono",monospace;font-size:12px;color:var(--text-3)';
       lang.textContent = block.lang || 'code';
       const copyBtn = document.createElement('button');
       copyBtn.textContent = '📋 Kopírovat';
