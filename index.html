@@ -18,12 +18,23 @@
   --shadow:0 4px 16px rgba(0,0,0,.07); --shadow-lg:0 24px 60px rgba(0,0,0,.14);
   --sidebar-w:232px;
 }
+/* ── DARK MODE ── */
+body.dark {
+  --bg:#1a1d23; --bg-1:#13151a; --bg-2:#22262f; --bg-3:#2d3140;
+  --border:#2d3140; --border-2:#3a3f50;
+  --text:#e8eaf0; --text-2:#9ba3b4; --text-3:#5a606e;
+  --blue:#3b82f6; --blue-hover:#2563eb; --blue-soft:#1e2a45; --blue-mid:#2d4070;
+  --red:#f87171; --red-soft:#2d1a1a;
+  --green:#4ade80; --green-soft:#1a2d1a;
+  --code-bg:#0d1117; --code-text:#e2e6ed;
+  --shadow:0 4px 16px rgba(0,0,0,.3); --shadow-lg:0 24px 60px rgba(0,0,0,.5);
+}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Geist',-apple-system,sans-serif;background:var(--bg-1);color:var(--text);height:100vh;display:flex;font-size:14px;overflow:hidden;position:fixed;width:100%}
+body{font-family:'Geist',-apple-system,sans-serif;background:var(--bg-1);color:var(--text);height:100vh;display:flex;font-size:14px;overflow:hidden;position:fixed;width:100%;transition:background .2s,color .2s}
 
 /* ── LOGIN SCREEN ── */
 #login-screen{position:fixed;inset:0;background:var(--bg-1);z-index:1000;display:flex;align-items:center;justify-content:center}
-.login-box{background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:36px 40px;width:380px;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;gap:20px}
+.login-box{background:#fff;border:1px solid #e4e7ed;border-radius:14px;padding:36px 40px;width:380px;box-shadow:0 24px 60px rgba(0,0,0,.14);display:flex;flex-direction:column;gap:20px}
 .login-logo{display:flex;align-items:center;gap:10px;margin-bottom:4px}
 .login-logo-icon{width:32px;height:32px;background:var(--blue);border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;font-size:16px;font-weight:700}
 .login-logo-text{font-size:20px;font-weight:600;letter-spacing:-.3px}
@@ -31,8 +42,8 @@ body{font-family:'Geist',-apple-system,sans-serif;background:var(--bg-1);color:v
 .login-sub{font-size:12.5px;color:var(--text-3);margin-top:-14px}
 .login-field{display:flex;flex-direction:column;gap:5px}
 .login-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3)}
-.login-input{font-family:'Geist',sans-serif;font-size:14px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-1);color:var(--text);outline:none;transition:border .15s,background .15s}
-.login-input:focus{border-color:var(--blue-mid);background:white}
+.login-input{font-family:'Geist',sans-serif;font-size:14px;padding:9px 12px;border:1px solid #e4e7ed;border-radius:var(--radius);background:#f7f8fa;color:#1a1d23;outline:none;transition:border .15s,background .15s}
+.login-input:focus{border-color:#bfcffe;background:white}
 .login-btn{font-family:'Geist',sans-serif;font-size:14px;font-weight:500;padding:10px;border-radius:var(--radius);border:none;cursor:pointer;transition:background .15s;background:var(--blue);color:white}
 .login-btn:hover{background:var(--blue-hover)}
 .login-btn.secondary{background:transparent;color:var(--text-2);border:1px solid var(--border)}
@@ -79,10 +90,13 @@ body{font-family:'Geist',-apple-system,sans-serif;background:var(--bg-1);color:v
 /* SIDEBAR BOTTOM */
 .sidebar-bottom{border-top:1px solid var(--border);padding:6px 8px;flex-shrink:0}
 /* USER CHIP in sidebar */
-.user-chip{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:var(--radius);margin-bottom:2px}
+.user-chip{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:var(--radius);margin-bottom:2px;cursor:pointer;transition:background .12s;user-select:none}
+.user-chip:hover{background:var(--bg-2)}
+.user-chip-arrow{font-size:10px;color:var(--text-3);margin-left:auto;transition:transform .2s;flex-shrink:0}
+.user-chip-arrow.open{transform:rotate(180deg)}
 .user-avatar{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;flex-shrink:0}
 .user-name{font-size:12.5px;font-weight:500;color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
-.user-signout{font-size:11px;color:var(--text-3);background:transparent;border:none;cursor:pointer;padding:3px 7px;border-radius:3px;transition:all .1s;flex-shrink:0;white-space:nowrap}
+.user-signout{font-size:11px;color:var(--text-3);background:transparent;border:none;cursor:pointer;padding:3px 7px;border-radius:3px;transition:all .1s;flex-shrink:0;white-space:nowrap;display:none}
 .user-signout:hover{background:var(--bg-2);color:var(--red)}
 
 /* ── MAIN ── */
@@ -170,7 +184,7 @@ body{font-family:'Geist',-apple-system,sans-serif;background:var(--bg-1);color:v
 .select-btn{display:flex;align-items:center;gap:4px;font-size:11.5px;padding:3px 9px;border-radius:20px;border:1px solid var(--border);color:var(--text-2);background:transparent;cursor:pointer;transition:all .12s;font-family:'Geist',sans-serif;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis}
 .select-btn:hover{border-color:var(--border-2);background:var(--bg-1)}
 .select-btn.has-val{background:var(--bg-1);color:var(--text);border-color:var(--border-2)}
-.select-dropdown{position:fixed;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);z-index:600;min-width:200px;max-height:300px;display:none;flex-direction:column;padding:0;overflow:hidden}
+.select-dropdown{position:fixed;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);z-index:600;min-width:200px;max-height:300px;display:none;flex-direction:column;padding:0;overflow:hidden;color:var(--text)}
 .select-dropdown.open{display:flex}
 .dd-search-wrap{padding:6px 8px;border-bottom:1px solid var(--border);flex-shrink:0}
 .dd-search{font-family:'Geist',sans-serif;font-size:12px;width:100%;border:1px solid var(--border);border-radius:5px;padding:4px 8px;outline:none;background:var(--bg-1);color:var(--text)}
@@ -196,16 +210,16 @@ body{font-family:'Geist',-apple-system,sans-serif;background:var(--bg-1);color:v
 .text-block:empty::before{content:attr(data-placeholder);color:var(--text-3);pointer-events:none}
 .text-block ul,.text-block ol{padding-left:20px}
 /* CODE BLOCK */
-.code-block-wrap{border-radius:8px;overflow:hidden;border:1px solid #d1d5db;flex-shrink:0}
-.code-header{background:#f3f4f6;padding:6px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #e5e7eb}
-.code-lang{font-family:'Geist Mono',monospace;font-size:11px;color:#6b7280;background:transparent;border:none;outline:none;width:80px;padding:2px 0}
+.code-block-wrap{border-radius:8px;overflow:hidden;border:1px solid var(--border);flex-shrink:0}
+.code-header{background:var(--bg-2);padding:6px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)}
+.code-lang{font-family:'Geist Mono',monospace;font-size:11px;color:var(--text-3);background:transparent;border:none;outline:none;width:80px;padding:2px 0}
 .code-lang::placeholder{color:#9ca3af}
 .code-header-sep{flex:1}
-.copy-code-btn{display:flex;align-items:center;gap:4px;padding:3px 8px;background:white;border:1px solid #d1d5db;border-radius:4px;color:#6b7280;font-family:'Geist Mono',monospace;font-size:10.5px;cursor:pointer;transition:all .12s}
-.copy-code-btn:hover{border-color:#9ca3af;color:#374151}
+.copy-code-btn{display:flex;align-items:center;gap:4px;padding:3px 8px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text-2);font-family:'Geist Mono',monospace;font-size:10.5px;cursor:pointer;transition:all .12s}
+.copy-code-btn:hover{border-color:var(--border-2);color:var(--text)}
 .copy-code-btn.copied{border-color:var(--green);color:var(--green);background:var(--green-soft)}
-.delete-block-btn{width:22px;height:22px;background:transparent;border:none;color:#9ca3af;cursor:pointer;border-radius:4px;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all .1s}
-.delete-block-btn:hover{background:#fee2e2;color:#dc2626}
+.delete-block-btn{width:22px;height:22px;background:transparent;border:none;color:var(--text-3);cursor:pointer;border-radius:4px;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all .1s}
+.delete-block-btn:hover{background:var(--red-soft);color:var(--red)}
 .code-editor{background:var(--code-bg);padding:14px 16px;font-family:'Geist Mono',monospace;font-size:13px;line-height:1.65;color:var(--code-text);outline:none;min-height:80px;white-space:pre-wrap;word-break:break-all;overflow-wrap:break-word;tab-size:2}
 .code-editor:empty::before{content:'// Sem vlož kód nebo prompt...';color:#5a6380;pointer-events:none}
 
@@ -243,7 +257,7 @@ body{font-family:'Geist',-apple-system,sans-serif;background:var(--bg-1);color:v
   position:fixed;top:0;left:0;right:0;
   display:flex;align-items:center;justify-content:center;gap:8px;
   height:0;overflow:hidden;background:var(--blue-soft);
-  color:var(--blue);font-size:13px;font-weight:500;
+  color:var(--blue);transition:height .2s,background .2s;font-size:13px;font-weight:500;
   transition:height .2s ease;z-index:150;
   font-family:'Geist',sans-serif;
 }
@@ -536,6 +550,33 @@ body.modal-open{overflow:hidden}
   </div>
   <div class="sidebar-bottom">
     <div id="user-chip-wrap"></div>
+    <!-- User detail panel (rozbalitelný) -->
+    <div id="user-panel" style="display:none;padding:10px 8px 4px;border-top:1px solid var(--border)">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);padding:0 4px 8px">Nastavení účtu</div>
+      <div style="display:flex;flex-direction:column;gap:8px;padding:0 4px">
+        <div>
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:3px">Zobrazované jméno</div>
+          <div style="display:flex;gap:4px">
+            <input id="profile-name-input" type="text" style="flex:1;font-family:'Geist',sans-serif;font-size:12.5px;padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-1);color:var(--text);outline:none" oninput="this.style.borderColor='var(--blue-mid)'">
+            <button onclick="saveProfileName()" style="font-family:'Geist',sans-serif;font-size:12px;padding:5px 10px;background:var(--blue);color:white;border:none;border-radius:var(--radius);cursor:pointer;white-space:nowrap">Uložit</button>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:3px">E-mail</div>
+          <div id="profile-email-display" style="font-size:12.5px;color:var(--text-2);padding:5px 8px;background:var(--bg-2);border-radius:var(--radius);border:1px solid var(--border)"></div>
+        </div>
+        <!-- Dark mode toggle -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0">
+          <span style="font-size:12.5px;color:var(--text-2)">Tmavý vzhled</span>
+          <button id="dark-toggle-btn" onclick="toggleDarkMode()" style="position:relative;width:40px;height:22px;border-radius:11px;border:none;cursor:pointer;transition:background .2s;flex-shrink:0;padding:0;background:var(--bg-3)">
+            <span id="dark-toggle-knob" style="position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:white;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></span>
+          </button>
+        </div>
+        <div style="padding-top:4px">
+          <button onclick="signOut()" style="width:100%;font-family:'Geist',sans-serif;font-size:12.5px;padding:7px 8px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text-3);cursor:pointer;text-align:left;transition:all .12s" onmouseover="this.style.color='var(--red)';this.style.borderColor='var(--red)'" onmouseout="this.style.color='var(--text-3)';this.style.borderColor='var(--border)'">↩ Odhlásit se</button>
+        </div>
+      </div>
+    </div>
     <div style="height:1px;background:var(--border);margin:4px 0 6px"></div>
     <button class="sidebar-btn" id="nav-archive" onclick="navTo('archive')">
       <span class="s-icon">🗄</span> Archiv <span class="s-cnt" id="nav-cnt-archive">0</span>
@@ -914,6 +955,7 @@ async function signOut() {
 }
 
 async function bootApp() {
+  applyDarkMode();
   document.getElementById('login-screen').style.display='none';
   document.getElementById('main-app').style.display='flex';
   document.getElementById('sidebar').style.display='flex';
@@ -937,14 +979,98 @@ async function bootApp() {
   syncTimer = setInterval(()=>sbPull().catch(e=>console.error('auto-pull:',e)), 30000);
 }
 
+// ══════════════════════════════════════════
+//  USER PANEL + DARK MODE
+// ══════════════════════════════════════════
+let userPanelOpen = false;
+
+function toggleUserPanel() {
+  userPanelOpen = !userPanelOpen;
+  const panel = document.getElementById('user-panel');
+  const arrow = document.getElementById('user-chip-arrow');
+  if(userPanelOpen) {
+    panel.style.display = 'block';
+    if(arrow) arrow.classList.add('open');
+    // refresh hodnot
+    const nameInput = document.getElementById('profile-name-input');
+    if(nameInput) nameInput.value = currentUser.name;
+    const emailDisp = document.getElementById('profile-email-display');
+    if(emailDisp) emailDisp.textContent = currentUser.email||'';
+    updateDarkToggleUI();
+  } else {
+    panel.style.display = 'none';
+    if(arrow) arrow.classList.remove('open');
+  }
+}
+
+function toggleDarkMode() {
+  const isDark = document.body.classList.toggle('dark');
+  localStorage.setItem('pn_dark', isDark ? '1' : '0');
+  updateDarkToggleUI();
+}
+
+function updateDarkToggleUI() {
+  const isDark = document.body.classList.contains('dark');
+  const btn = document.getElementById('dark-toggle-btn');
+  const knob = document.getElementById('dark-toggle-knob');
+  if(!btn || !knob) return;
+  btn.style.background = isDark ? 'var(--blue)' : 'var(--bg-3)';
+  knob.style.transform = isDark ? 'translateX(18px)' : 'translateX(0)';
+}
+
+function applyDarkMode() {
+  const saved = localStorage.getItem('pn_dark');
+  if(saved === '1') document.body.classList.add('dark');
+  else document.body.classList.remove('dark');
+}
+
+async function saveProfileName() {
+  const input = document.getElementById('profile-name-input');
+  const newName = input?.value?.trim();
+  if(!newName) return;
+  if(newName === currentUser.name) { input.style.borderColor='var(--border)'; return; }
+  input.disabled = true;
+  try {
+    // Aktualizuj Supabase Auth metadata
+    await fetch(sb.url+'/auth/v1/user', {
+      method:'PUT',
+      headers:{ apikey:sb.key, Authorization:`Bearer ${authToken}`, 'Content-Type':'application/json' },
+      body: JSON.stringify({ data: { display_name: newName } })
+    });
+    // Aktualizuj profil v tabulce
+    await sbUpsert('prompty_profiles',[{ id:currentUser.id, display_name:newName, email:currentUser.email }]);
+    // Aktualizuj lokální stav
+    currentUser.name = newName;
+    allUsers[currentUser.id] = { name:newName, color:currentUser.color };
+    const session = JSON.parse(localStorage.getItem('pn_session')||'{}');
+    session.user = currentUser;
+    localStorage.setItem('pn_session', JSON.stringify(session));
+    // Překresli chip
+    renderUserChip();
+    // Znovu otevři panel
+    userPanelOpen = false;
+    toggleUserPanel();
+    toast('Jméno uloženo ✓');
+  } catch(e) {
+    toast('Chyba: '+e.message);
+  }
+  if(input) input.disabled = false;
+}
+
 function renderUserChip() {
   if (!currentUser) return;
   document.getElementById('user-chip-wrap').innerHTML = `
-    <div class="user-chip">
+    <div class="user-chip" onclick="toggleUserPanel()">
       <div class="user-avatar" style="background:${currentUser.color}">${initials(currentUser.name)}</div>
       <span class="user-name">${currentUser.name}</span>
-      <button class="user-signout" onclick="signOut()" title="Odhlásit se">↩ Odhlásit</button>
+      <span class="user-chip-arrow" id="user-chip-arrow">▾</span>
     </div>`;
+  // Nastav hodnoty v panelu
+  const nameInput = document.getElementById('profile-name-input');
+  if(nameInput) nameInput.value = currentUser.name;
+  const emailDisp = document.getElementById('profile-email-display');
+  if(emailDisp) emailDisp.textContent = currentUser.email||'';
+  updateDarkToggleUI();
 }
 
 // ══════════════════════════════════════════
@@ -1109,14 +1235,12 @@ function noteRow(n) {
   const visBadge = n.visibility==='shared'
     ? `<span class="note-vis-badge shared">sdílený</span>`
     : (isOwn ? '' : '');
-  const authorAv = (!isOwn && n.createdBy) ? avatarHtml(n.createdBy, 20) : '';
   return `<div class="note-row ${n.archived?'archived':''}">
     <div class="note-row-title-area" onclick="openNoteView('${n.id}')">
       <span class="note-row-icon">${hasCode?'</>':'#'}</span>
       <span class="note-row-title">${n.title||'Bez názvu'}</span>
       <div class="note-row-tags">${tagChips}</div>
       ${visBadge}
-      ${authorAv}
     </div>
     <button class="note-row-copy-btn" onclick="quickCopyCode('${n.id}',this)" title="Kopírovat kód" ${!hasCode?'data-nocode="1"':''}>&lt;/&gt;</button>
     <div class="note-row-meta">
