@@ -2,7 +2,7 @@
 <html lang="cs">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Prompty</title>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@300;400&display=swap" rel="stylesheet">
 <style>
@@ -123,8 +123,8 @@ body{font-family:'Geist',-apple-system,sans-serif;background:var(--bg-1);color:v
 .note-row-tags{display:flex;gap:4px;flex-shrink:0}
 .note-row-tag{font-size:10.5px;padding:1px 6px;border-radius:10px;background:var(--bg-2);color:var(--text-3)}
 /* visibility badge */
-.note-vis-badge{font-size:10px;padding:1px 6px;border-radius:10px;flex-shrink:0;font-weight:500}
-.note-vis-badge.shared{background:#fef9c3;color:#854d0e}
+.note-vis-badge{font-size:10.5px;padding:2px 7px;border-radius:4px;flex-shrink:0;font-weight:600;letter-spacing:.01em}
+.note-vis-badge.shared{background:#dbeafe;color:#1d4ed8;border:1px solid #bfdbfe}
 .note-vis-badge.private{background:var(--bg-2);color:var(--text-3)}
 /* author avatar in list */
 .note-author-avatar{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:white;flex-shrink:0;title:attr(title)}
@@ -159,7 +159,7 @@ body{font-family:'Geist',-apple-system,sans-serif;background:var(--bg-1);color:v
 .vis-toggle{display:flex;border:1px solid var(--border);border-radius:20px;overflow:hidden;flex-shrink:0}
 .vis-opt{font-size:11.5px;padding:3px 10px;cursor:pointer;background:transparent;border:none;font-family:'Geist',sans-serif;color:var(--text-3);transition:all .1s;white-space:nowrap}
 .vis-opt.active-private{background:var(--bg-2);color:var(--text-2);font-weight:500}
-.vis-opt.active-shared{background:#fef9c3;color:#854d0e;font-weight:500}
+.vis-opt.active-shared{background:#dbeafe;color:#1d4ed8;font-weight:600;border-color:#bfdbfe}
 
 .meta-chip{display:flex;align-items:center;gap:4px;font-size:11.5px;padding:3px 9px;border-radius:20px;border:1px solid var(--border);color:var(--text-2);background:transparent;cursor:pointer;transition:all .12s;font-family:'Geist',sans-serif;white-space:nowrap}
 .meta-chip:hover{border-color:var(--border-2);background:var(--bg-1)}
@@ -234,6 +234,21 @@ body{font-family:'Geist',-apple-system,sans-serif;background:var(--bg-1);color:v
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--bg-3);border-radius:3px}
 
+
+/* PULL TO REFRESH */
+#pull-indicator{
+  position:fixed;top:0;left:0;right:0;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  height:0;overflow:hidden;background:var(--blue-soft);
+  color:var(--blue);font-size:13px;font-weight:500;
+  transition:height .2s ease;z-index:150;
+  font-family:'Geist',sans-serif;
+}
+#pull-indicator .ptr-icon{font-size:16px;transition:transform .3s ease;display:inline-block}
+#pull-indicator.ptr-ready .ptr-icon{transform:rotate(180deg)}
+#pull-indicator.ptr-loading .ptr-icon{animation:ptr-spin .7s linear infinite}
+@keyframes ptr-spin{to{transform:rotate(360deg)}}
+
 /* MOBILE SIDEBAR OVERLAY */
 #sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:95;-webkit-tap-highlight-color:transparent}
 
@@ -267,8 +282,9 @@ body{font-family:'Geist',-apple-system,sans-serif;background:var(--bg-1);color:v
   .main{width:100vw!important}
 
   /* Topbar – jednořádkový s větším touch target */
-  .topbar{height:56px!important;padding:0 12px!important;gap:6px!important}
-  .breadcrumb{font-size:14px!important;font-weight:600}
+  .topbar{height:60px!important;padding:0 14px!important;gap:6px!important;padding-top:max(0px, env(safe-area-inset-top))!important}
+  .breadcrumb{font-size:14px!important;font-weight:600;overflow:hidden}
+  .breadcrumb .current{font-size:14px!important;max-width:calc(100vw - 120px)}
   .breadcrumb .current{font-size:14px}
 
   /* Topbar right – skryj sort a + nový na mobilu (nahrazeno FAB) */
@@ -412,6 +428,9 @@ body{font-family:'Geist',-apple-system,sans-serif;background:var(--bg-1);color:v
 </style>
 </head>
 <body>
+
+<!-- PULL TO REFRESH indicator -->
+<div id="pull-indicator"><span class="ptr-icon">↓</span> <span id="ptr-text">Stáhnout pro aktualizaci</span></div>
 
 <!-- MOBILE SIDEBAR OVERLAY -->
 <div id="sidebar-overlay" onclick="closeMobileSidebar()"></div>
@@ -1383,6 +1402,69 @@ function openNoteFromMobile() {
   closeMobileNote();
   setTimeout(()=>openNoteModal(id), 220);
 }
+
+
+// ══════════════════════════════════════════
+//  PULL TO REFRESH
+// ══════════════════════════════════════════
+(function(){
+  let startY=0, currentY=0, pulling=false, triggered=false;
+  const THRESHOLD = 70; // px needed to trigger
+
+  function getScrollEl() {
+    // main content area
+    return document.getElementById('main-content');
+  }
+
+  document.addEventListener('touchstart', e=>{
+    if (!isMobile()) return;
+    const el = getScrollEl();
+    if (!el || el.scrollTop > 0) return; // only when at top
+    startY = e.touches[0].clientY;
+    pulling = true;
+    triggered = false;
+  }, {passive:true});
+
+  document.addEventListener('touchmove', e=>{
+    if (!pulling || !isMobile()) return;
+    const el = getScrollEl();
+    if (!el || el.scrollTop > 0) { pulling=false; return; }
+    currentY = e.touches[0].clientY;
+    const dist = Math.max(0, Math.min(currentY - startY, 110));
+    if (dist <= 0) return;
+    const ind = document.getElementById('pull-indicator');
+    const h = Math.min(dist * 0.55, 54);
+    ind.style.height = h + 'px';
+    if (dist >= THRESHOLD && !triggered) {
+      ind.classList.add('ptr-ready');
+      document.getElementById('ptr-text').textContent = 'Pustit pro aktualizaci';
+    } else if (dist < THRESHOLD) {
+      ind.classList.remove('ptr-ready');
+      document.getElementById('ptr-text').textContent = 'Stáhnout pro aktualizaci';
+    }
+  }, {passive:true});
+
+  document.addEventListener('touchend', async e=>{
+    if (!pulling || !isMobile()) return;
+    pulling = false;
+    const dist = currentY - startY;
+    const ind = document.getElementById('pull-indicator');
+    if (dist >= THRESHOLD) {
+      // trigger refresh
+      ind.classList.remove('ptr-ready');
+      ind.classList.add('ptr-loading');
+      ind.style.height = '48px';
+      document.getElementById('ptr-text').textContent = 'Synchronizuji…';
+      document.getElementById('ptr-icon') // noop
+      try { await sbSync(); } catch(e){}
+      ind.classList.remove('ptr-loading');
+    }
+    ind.style.height = '0';
+    ind.classList.remove('ptr-ready','ptr-loading');
+    document.getElementById('ptr-text').textContent = 'Stáhnout pro aktualizaci';
+    startY=0; currentY=0;
+  }, {passive:true});
+})();
 
 // ══════════════════════════════════════════
 //  KEYBOARD + RESIZE
