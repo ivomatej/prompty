@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prompty</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#fff; --bg-1:#f7f8fa; --bg-2:#f0f2f5; --bg-3:#e4e7ed;
+  --border:#e4e7ed; --border-2:#d0d4dc;
+  --text:#1a1d23; --text-2:#5a606e; --text-3:#9ba3b4;
+  --blue:#2563eb; --blue-hover:#1d4ed8; --blue-soft:#eff4ff; --blue-mid:#bfcffe;
+  --red:#dc2626; --red-soft:#fef2f2;
+  --green:#16a34a; --green-soft:#f0fdf4;
+  --code-bg:#282c36; --code-text:#e2e6ed;
+  --radius:6px; --radius-lg:9px;
+  --shadow:0 4px 16px rgba(0,0,0,.07); --shadow-lg:0 24px 60px rgba(0,0,0,.14);
+  --sidebar-w:232px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Geist',-apple-system,sans-serif;background:var(--bg-1);color:var(--text);height:100vh;display:flex;font-size:14px;overflow:hidden}
+
+/* ── LOGIN SCREEN ── */
+#login-screen{position:fixed;inset:0;background:var(--bg-1);z-index:1000;display:flex;align-items:center;justify-content:center}
+.login-box{background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:36px 40px;width:380px;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;gap:20px}
+.login-logo{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.login-logo-icon{width:32px;height:32px;background:var(--blue);border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;font-size:16px;font-weight:700}
+.login-logo-text{font-size:20px;font-weight:600;letter-spacing:-.3px}
+.login-title{font-size:15px;font-weight:600;color:var(--text)}
+.login-sub{font-size:12.5px;color:var(--text-3);margin-top:-14px}
+.login-field{display:flex;flex-direction:column;gap:5px}
+.login-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3)}
+.login-input{font-family:'Geist',sans-serif;font-size:14px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-1);color:var(--text);outline:none;transition:border .15s,background .15s}
+.login-input:focus{border-color:var(--blue-mid);background:white}
+.login-btn{font-family:'Geist',sans-serif;font-size:14px;font-weight:500;padding:10px;border-radius:var(--radius);border:none;cursor:pointer;transition:background .15s;background:var(--blue);color:white}
+.login-btn:hover{background:var(--blue-hover)}
+.login-btn.secondary{background:transparent;color:var(--text-2);border:1px solid var(--border)}
+.login-btn.secondary:hover{background:var(--bg-2)}
+.login-toggle{font-size:12.5px;color:var(--text-3);text-align:center}
+.login-toggle a{color:var(--blue);cursor:pointer;text-decoration:none}
+.login-toggle a:hover{text-decoration:underline}
+.login-err{font-size:12.5px;color:var(--red);background:var(--red-soft);padding:8px 10px;border-radius:5px;display:none}
+.login-err.show{display:block}
+
+/* ── SIDEBAR ── */
+.sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);background:var(--bg);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100vh;transition:width .2s,min-width .2s,opacity .2s;overflow:hidden;flex-shrink:0}
+.sidebar.collapsed{width:0;min-width:0;border-right:none;opacity:0;pointer-events:none}
+.sidebar-top{height:53px;padding:0 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0}
+.app-logo{font-size:15px;font-weight:600;color:var(--text);letter-spacing:-.3px;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.logo-icon{width:26px;height:26px;background:var(--blue);border-radius:6px;display:flex;align-items:center;justify-content:center;color:white;font-size:13px;font-weight:700;flex-shrink:0}
+.sidebar-nav{padding:8px 8px 0;display:flex;flex-direction:column;gap:1px;flex-shrink:0}
+.sidebar-btn{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:var(--radius);border:none;background:transparent;color:var(--text-2);font-family:'Geist',sans-serif;font-size:13px;cursor:pointer;width:100%;text-align:left;transition:all .1s;white-space:nowrap}
+.sidebar-btn:hover{background:var(--bg-1);color:var(--text)}
+.sidebar-btn.active{background:var(--blue-soft);color:var(--blue);font-weight:500}
+.sidebar-btn .s-icon{font-size:13px;flex-shrink:0;width:16px;text-align:center;opacity:.7}
+.sidebar-btn .s-cnt{margin-left:auto;font-size:11px;color:var(--text-3)}
+.sidebar-btn.active .s-cnt{color:var(--blue)}
+.sidebar-scroll{flex:1;overflow-y:auto;padding-bottom:8px}
+.sidebar-section{margin-bottom:4px}
+.sidebar-label{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);padding:12px 16px 4px;display:flex;align-items:center;justify-content:space-between}
+.s-add-btn{width:16px;height:16px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:var(--text-3);cursor:pointer;border-radius:3px;font-size:14px;transition:all .1s;line-height:1}
+.s-add-btn:hover{background:var(--bg-2);color:var(--blue)}
+/* TREE */
+.tree-row{display:flex;align-items:center;gap:2px;padding:5px 8px;border-radius:var(--radius);cursor:pointer;transition:background .1s;margin:0 8px}
+.tree-row:hover{background:var(--bg-1)}
+.tree-row.active{background:var(--blue-soft)}
+.tree-row.active .tree-name{color:var(--blue);font-weight:500}
+.tree-toggle{width:14px;height:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--text-3);font-size:8px;transition:transform .15s;border:none;background:transparent;cursor:pointer;border-radius:3px}
+.tree-toggle:hover{background:var(--bg-3)}
+.tree-toggle.open{transform:rotate(90deg)}
+.tree-icon{font-size:12px;flex-shrink:0;opacity:.7}
+.tree-name{font-size:13px;color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.tree-cnt{font-size:10.5px;color:var(--text-3)}
+.tree-actions{display:none;gap:1px;flex-shrink:0}
+.tree-row:hover .tree-actions{display:flex}
+.tree-act-btn{width:18px;height:18px;border:none;background:transparent;border-radius:3px;cursor:pointer;font-size:10px;color:var(--text-3);display:flex;align-items:center;justify-content:center;transition:all .1s}
+.tree-act-btn:hover{background:var(--bg-3);color:var(--text)}
+/* SIDEBAR BOTTOM */
+.sidebar-bottom{border-top:1px solid var(--border);padding:6px 8px;flex-shrink:0}
+/* USER CHIP in sidebar */
+.user-chip{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:var(--radius);margin-bottom:2px}
+.user-avatar{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;flex-shrink:0}
+.user-name{font-size:12.5px;font-weight:500;color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.user-signout{font-size:11px;color:var(--text-3);background:transparent;border:none;cursor:pointer;padding:2px 5px;border-radius:3px;transition:all .1s;flex-shrink:0}
+.user-signout:hover{background:var(--bg-2);color:var(--red)}
+
+/* ── MAIN ── */
+.main{flex:1;display:flex;flex-direction:column;min-width:0;height:100vh;overflow:hidden}
+.topbar{background:var(--bg);border-bottom:1px solid var(--border);padding:0 20px;height:53px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.toggle-sidebar-btn{width:30px;height:30px;border:none;background:transparent;border-radius:var(--radius);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-3);font-size:16px;flex-shrink:0;transition:all .1s}
+.toggle-sidebar-btn:hover{background:var(--bg-2);color:var(--text)}
+.topbar-icon-btn{width:30px;height:30px;border:none;background:transparent;border-radius:var(--radius);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-3);font-size:16px;transition:all .1s;flex-shrink:0}
+.topbar-icon-btn:hover{background:var(--bg-2);color:var(--text)}
+.breadcrumb{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--text-2);flex:1;min-width:0;overflow:hidden}
+.breadcrumb .crumb{cursor:pointer;transition:color .1s;white-space:nowrap}
+.breadcrumb .crumb:hover{color:var(--blue)}
+.breadcrumb .sep{color:var(--text-3)}
+.breadcrumb .current{color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.search-wrap{position:relative;display:flex;align-items:center}
+.search-icon{position:absolute;left:9px;color:var(--text-3);font-size:11px;pointer-events:none}
+.search-input{font-family:'Geist',sans-serif;font-size:13px;padding:6px 10px 6px 26px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-1);color:var(--text);outline:none;width:180px;transition:border .15s,background .15s}
+.search-input:focus{border-color:var(--blue-mid);background:white}
+.search-input::placeholder{color:var(--text-3)}
+.sort-select{font-family:'Geist',sans-serif;font-size:12px;padding:5px 9px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-1);color:var(--text-2);cursor:pointer;outline:none}
+.btn-new{display:flex;align-items:center;gap:4px;padding:6px 13px;background:var(--blue);color:white;border:none;border-radius:var(--radius);font-family:'Geist',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:background .15s;white-space:nowrap}
+.btn-new:hover{background:var(--blue-hover)}
+
+/* SYNC BANNER */
+#sb-banner{padding:6px 20px;font-size:12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);background:var(--bg-1)}
+
+/* CONTENT & LIST */
+.content{flex:1;overflow-y:auto;padding:0}
+.notes-list{display:flex;flex-direction:column}
+.note-row{display:flex;align-items:center;padding:9px 20px;border-bottom:1px solid var(--border);gap:8px}
+.note-row:last-child{border-bottom:none}
+.note-row.archived{opacity:.5}
+.note-row-title-area{flex:1;display:flex;align-items:center;gap:8px;min-width:0;cursor:pointer}
+.note-row-title-area:hover .note-row-title{color:var(--blue)}
+.note-row-icon{font-size:10px;color:var(--text-3);flex-shrink:0;font-family:'Geist Mono',monospace;font-weight:600;width:20px;text-align:center}
+.note-row-title{font-size:13.5px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;transition:color .1s}
+.note-row-tags{display:flex;gap:4px;flex-shrink:0}
+.note-row-tag{font-size:10.5px;padding:1px 6px;border-radius:10px;background:var(--bg-2);color:var(--text-3)}
+/* visibility badge */
+.note-vis-badge{font-size:10px;padding:1px 6px;border-radius:10px;flex-shrink:0;font-weight:500}
+.note-vis-badge.shared{background:#fef9c3;color:#854d0e}
+.note-vis-badge.private{background:var(--bg-2);color:var(--text-3)}
+/* author avatar in list */
+.note-author-avatar{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:white;flex-shrink:0;title:attr(title)}
+/* quick copy */
+.note-row-copy-btn{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:1px solid var(--border);border-radius:5px;background:transparent;cursor:pointer;color:var(--text-3);font-family:'Geist Mono',monospace;font-size:10px;font-weight:600;transition:all .12s}
+.note-row-copy-btn:hover{border-color:var(--border-2);background:var(--bg-1);color:var(--text-2)}
+.note-row-copy-btn.copied{border-color:var(--green);color:var(--green);background:var(--green-soft)}
+.note-row-copy-btn[data-nocode]{opacity:.2;cursor:default;pointer-events:none}
+.note-row-date{font-family:'Geist Mono',monospace;font-size:11.5px;color:var(--text-3);flex-shrink:0;white-space:nowrap}
+
+/* EMPTY */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;gap:10px}
+.empty-icon{font-size:36px;opacity:.2}
+.empty-title{font-size:14px;font-weight:500;color:var(--text-2)}
+.empty-sub{font-size:12.5px;color:var(--text-3)}
+
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(10,12,20,.4);backdrop-filter:blur(4px);z-index:300;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .18s;padding:28px}
+.overlay.open{opacity:1;pointer-events:all}
+.modal{background:var(--bg);width:100%;max-width:860px;height:100%;max-height:100%;display:flex;flex-direction:column;box-shadow:var(--shadow-lg);border:1px solid var(--border);border-radius:12px;transform:translateY(16px) scale(.99);transition:transform .2s;overflow:hidden}
+.overlay.open .modal{transform:translateY(0) scale(1)}
+.modal-sm{border-radius:10px;max-width:420px;width:420px;max-height:90vh;height:auto;transform:translateY(12px) scale(.98)}
+.overlay.open .modal-sm{transform:translateY(0) scale(1)}
+.modal-header{padding:18px 24px 14px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:10px;flex-shrink:0;overflow:visible;position:relative;z-index:10}
+.modal-title-row{display:flex;align-items:center;gap:8px}
+.title-input{font-family:'Geist',sans-serif;font-size:19px;font-weight:600;border:none;background:transparent;color:var(--text);outline:none;flex:1;letter-spacing:-.3px}
+.title-input::placeholder{color:var(--text-3)}
+.modal-close-x{width:28px;height:28px;border:none;background:transparent;border-radius:var(--radius);cursor:pointer;font-size:16px;color:var(--text-3);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .1s}
+.modal-close-x:hover{background:var(--bg-2);color:var(--text)}
+.modal-meta-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:0}
+/* visibility toggle in modal */
+.vis-toggle{display:flex;border:1px solid var(--border);border-radius:20px;overflow:hidden;flex-shrink:0}
+.vis-opt{font-size:11.5px;padding:3px 10px;cursor:pointer;background:transparent;border:none;font-family:'Geist',sans-serif;color:var(--text-3);transition:all .1s;white-space:nowrap}
+.vis-opt.active-private{background:var(--bg-2);color:var(--text-2);font-weight:500}
+.vis-opt.active-shared{background:#fef9c3;color:#854d0e;font-weight:500}
+
+.meta-chip{display:flex;align-items:center;gap:4px;font-size:11.5px;padding:3px 9px;border-radius:20px;border:1px solid var(--border);color:var(--text-2);background:transparent;cursor:pointer;transition:all .12s;font-family:'Geist',sans-serif;white-space:nowrap}
+.meta-chip:hover{border-color:var(--border-2);background:var(--bg-1)}
+.select-wrap{position:relative;display:inline-flex;align-items:center;flex-shrink:0}
+.select-btn{display:flex;align-items:center;gap:4px;font-size:11.5px;padding:3px 9px;border-radius:20px;border:1px solid var(--border);color:var(--text-2);background:transparent;cursor:pointer;transition:all .12s;font-family:'Geist',sans-serif;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis}
+.select-btn:hover{border-color:var(--border-2);background:var(--bg-1)}
+.select-btn.has-val{background:var(--bg-1);color:var(--text);border-color:var(--border-2)}
+.select-dropdown{position:fixed;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);z-index:600;min-width:200px;max-height:300px;display:none;flex-direction:column;padding:0;overflow:hidden}
+.select-dropdown.open{display:flex}
+.dd-search-wrap{padding:6px 8px;border-bottom:1px solid var(--border);flex-shrink:0}
+.dd-search{font-family:'Geist',sans-serif;font-size:12px;width:100%;border:1px solid var(--border);border-radius:5px;padding:4px 8px;outline:none;background:var(--bg-1);color:var(--text)}
+.dd-search:focus{border-color:var(--blue-mid);background:white}
+.dd-search::placeholder{color:var(--text-3)}
+.dd-list{overflow-y:auto;flex:1;padding:4px}
+.fd-item{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:5px;cursor:pointer;font-size:13px;color:var(--text-2);transition:background .1s}
+.fd-item:hover{background:var(--bg-1);color:var(--text)}
+.fd-item.selected{background:var(--blue-soft);color:var(--blue);font-weight:500}
+.fd-sep{height:1px;background:var(--border);margin:3px 0}
+.tags-wrap{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.tag-chip{display:inline-flex;align-items:center;gap:3px;font-size:11px;padding:2px 7px;border-radius:20px;background:var(--bg-2);color:var(--text-2);cursor:pointer;border:none;font-family:'Geist',sans-serif;transition:background .1s;white-space:nowrap}
+.tag-chip:hover{background:var(--bg-3)}
+.fmt-sep-v{width:1px;height:18px;background:var(--border);margin:0 2px;flex-shrink:0}
+.fmt-btn{width:26px;height:24px;border:none;background:transparent;border-radius:4px;cursor:pointer;font-size:12px;color:var(--text-2);display:flex;align-items:center;justify-content:center;transition:all .1s;font-family:'Geist',sans-serif;flex-shrink:0}
+.fmt-btn:hover{background:var(--bg-3);color:var(--text)}
+.add-code-btn{display:flex;align-items:center;justify-content:center;width:26px;height:24px;background:var(--bg-2);color:var(--text-2);border:1px solid var(--border);border-radius:4px;font-family:'Geist Mono',monospace;font-size:10px;font-weight:600;cursor:pointer;transition:all .12s;flex-shrink:0}
+.add-code-btn:hover{background:var(--bg-3);border-color:var(--border-2);color:var(--text)}
+
+/* EDITOR */
+.editor-scroll{flex:1;overflow-y:auto;padding:18px 24px;display:flex;flex-direction:column;gap:14px}
+.text-block{outline:none;min-height:28px;font-family:'Geist',sans-serif;font-size:14px;line-height:1.75;color:var(--text);word-break:break-word}
+.text-block:empty::before{content:attr(data-placeholder);color:var(--text-3);pointer-events:none}
+.text-block ul,.text-block ol{padding-left:20px}
+/* CODE BLOCK */
+.code-block-wrap{border-radius:8px;overflow:hidden;border:1px solid #d1d5db;flex-shrink:0}
+.code-header{background:#f3f4f6;padding:6px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #e5e7eb}
+.code-lang{font-family:'Geist Mono',monospace;font-size:11px;color:#6b7280;background:transparent;border:none;outline:none;width:80px;padding:2px 0}
+.code-lang::placeholder{color:#9ca3af}
+.code-header-sep{flex:1}
+.copy-code-btn{display:flex;align-items:center;gap:4px;padding:3px 8px;background:white;border:1px solid #d1d5db;border-radius:4px;color:#6b7280;font-family:'Geist Mono',monospace;font-size:10.5px;cursor:pointer;transition:all .12s}
+.copy-code-btn:hover{border-color:#9ca3af;color:#374151}
+.copy-code-btn.copied{border-color:var(--green);color:var(--green);background:var(--green-soft)}
+.delete-block-btn{width:22px;height:22px;background:transparent;border:none;color:#9ca3af;cursor:pointer;border-radius:4px;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all .1s}
+.delete-block-btn:hover{background:#fee2e2;color:#dc2626}
+.code-editor{background:var(--code-bg);padding:14px 16px;font-family:'Geist Mono',monospace;font-size:13px;line-height:1.65;color:var(--code-text);outline:none;min-height:80px;white-space:pre-wrap;word-break:break-all;overflow-wrap:break-word;tab-size:2}
+.code-editor:empty::before{content:'// Sem vlož kód nebo prompt...';color:#5a6380;pointer-events:none}
+
+/* NOTE FOOTER */
+.modal-footer{padding:11px 24px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;background:var(--bg-1);flex-shrink:0}
+/* note author info in footer */
+.note-author-info{font-size:11.5px;color:var(--text-3);display:flex;align-items:center;gap:5px}
+.note-author-dot{width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:white;flex-shrink:0}
+.btn{font-family:'Geist',sans-serif;font-size:13px;font-weight:500;padding:6px 14px;border-radius:var(--radius);border:none;cursor:pointer;transition:all .14s;display:flex;align-items:center;gap:5px}
+.btn-primary{background:var(--blue);color:white}
+.btn-primary:hover{background:var(--blue-hover)}
+.btn-ghost{background:transparent;color:var(--text-2);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--bg-2);color:var(--text)}
+.btn-danger{background:transparent;color:var(--red)}
+.btn-danger:hover{background:var(--red-soft)}
+.btn-archive{background:transparent;color:var(--text-2);border:1px solid var(--border)}
+.btn-archive:hover{background:var(--bg-2)}
+.btn-archive.active{background:var(--bg-2);color:var(--text);font-weight:500}
+.kbd{font-family:'Geist Mono',monospace;font-size:10px;color:var(--text-3)}
+.spacer{flex:1}
+.folder-input{font-family:'Geist',sans-serif;font-size:14px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-1);color:var(--text);outline:none;width:100%;transition:border .15s}
+.folder-input:focus{border-color:var(--blue-mid);background:white}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(10px);background:#1a1d23;color:white;padding:8px 16px;border-radius:7px;font-size:13px;font-weight:500;opacity:0;pointer-events:none;transition:all .2s;z-index:9999;white-space:nowrap;box-shadow:var(--shadow)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bg-3);border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN SCREEN ── -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-logo-icon">P</div>
+      <div class="login-logo-text">Prompty</div>
+    </div>
+    <div>
+      <div class="login-title" id="login-title">Přihlásit se</div>
+      <div class="login-sub" id="login-sub" style="margin-top:4px">Pokračuj do svého účtu</div>
+    </div>
+    <!-- Supabase config (first-time setup) -->
+    <div id="login-sb-section">
+      <div class="login-field" id="login-sb-fields">
+        <div class="login-label">Project URL</div>
+        <input class="login-input" id="ls-url" type="url" placeholder="https://xxxx.supabase.co">
+        <div class="login-label" style="margin-top:8px">Anon Key</div>
+        <input class="login-input" id="ls-key" type="password" placeholder="eyJhbGci...">
+        <button class="login-btn" style="margin-top:4px" onclick="saveSbFromLogin()">Uložit připojení</button>
+      </div>
+      <div id="login-sb-connected" style="display:none;font-size:12px;color:var(--green);display:flex;align-items:center;gap:5px;padding:4px 0">
+        <span>●</span> <span id="login-sb-url-label"></span> <a style="margin-left:auto;color:var(--text-3);cursor:pointer;font-size:11px" onclick="resetSbFromLogin()">změnit</a>
+      </div>
+    </div>
+    <div class="login-err" id="login-err"></div>
+    <div class="login-field">
+      <div class="login-label">E-mail</div>
+      <input class="login-input" id="login-email" type="email" placeholder="vas@email.cz">
+      <div class="login-label" style="margin-top:8px" id="login-name-label" style="display:none">Zobrazované jméno</div>
+      <input class="login-input" id="login-name" type="text" placeholder="Jan Novák" style="display:none;margin-top:4px">
+      <div class="login-label" style="margin-top:8px">Heslo</div>
+      <input class="login-input" id="login-pass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="login-btn" id="login-submit-btn" onclick="doLogin()">Přihlásit se</button>
+    <div class="login-toggle">
+      <span id="login-toggle-text">Nemáš účet?</span> <a id="login-toggle-link" onclick="toggleLoginMode()">Registrovat se</a>
+    </div>
+  </div>
+</div>
+
+<!-- ── APP ── -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-top">
+    <div class="app-logo"><div class="logo-icon">P</div>Prompty</div>
+  </div>
+  <div class="sidebar-nav">
+    <button class="sidebar-btn active" id="nav-all" onclick="navTo('all')">
+      <span class="s-icon">📋</span> Všechny <span class="s-cnt" id="nav-cnt-all">0</span>
+    </button>
+    <button class="sidebar-btn" id="nav-mine" onclick="navTo('mine')">
+      <span class="s-icon">👤</span> Moje <span class="s-cnt" id="nav-cnt-mine">0</span>
+    </button>
+    <button class="sidebar-btn" id="nav-shared" onclick="navTo('shared')">
+      <span class="s-icon">🔗</span> Sdílené <span class="s-cnt" id="nav-cnt-shared">0</span>
+    </button>
+  </div>
+  <div class="sidebar-scroll">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Složky <button class="s-add-btn" onclick="openItemModal('folder',null)" title="Nová složka">+</button></div>
+      <div id="folder-tree"></div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Štítky <button class="s-add-btn" onclick="openItemModal('tag',null)" title="Nový štítek">+</button></div>
+      <div id="tag-tree"></div>
+    </div>
+  </div>
+  <div class="sidebar-bottom">
+    <button class="sidebar-btn" id="nav-archive" onclick="navTo('archive')">
+      <span class="s-icon">🗄</span> Archiv <span class="s-cnt" id="nav-cnt-archive">0</span>
+    </button>
+    <div id="user-chip-wrap"></div>
+    <div style="height:1px;background:var(--border);margin:4px 0"></div>
+    <div style="display:flex;flex-direction:column;gap:1px">
+      <button class="sidebar-btn" onclick="exportJSON()"><span class="s-icon">⬇</span> Export JSON</button>
+      <button class="sidebar-btn" onclick="exportCSV()"><span class="s-icon">⬇</span> Export CSV</button>
+      <label class="sidebar-btn" style="cursor:pointer"><span class="s-icon">⬆</span> Import JSON<input type="file" accept=".json" style="display:none" onchange="importJSON(event)"></label>
+    </div>
+  </div>
+</aside>
+
+<div class="main" id="main-app" style="display:none">
+  <div class="topbar">
+    <button class="toggle-sidebar-btn" onclick="toggleSidebar()">☰</button>
+    <div class="breadcrumb" id="breadcrumb"><span class="current">Všechny prompty</span></div>
+    <div class="topbar-right">
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input class="search-input" id="search-input" type="text" placeholder="Hledat..." oninput="renderNotes()">
+      </div>
+      <select class="sort-select" id="sort-select" onchange="renderNotes()">
+        <option value="newest">Nejnovější</option>
+        <option value="oldest">Nejstarší</option>
+        <option value="alpha">A → Z</option>
+        <option value="alpha-desc">Z → A</option>
+      </select>
+      <button class="btn-new" onclick="openNoteModal()">+ Nový prompt</button>
+    </div>
+  </div>
+  <div id="sb-banner" style="display:none;padding:6px 20px;font-size:12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);background:var(--bg-1)">
+    <span id="sb-status-dot" style="width:7px;height:7px;border-radius:50%;background:#9ca3af;flex-shrink:0"></span>
+    <span id="sb-status-text" style="color:var(--text-3)">Supabase</span>
+    <span style="flex:1"></span>
+    <button onclick="sbSync()" id="sb-sync-btn" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:4px;background:white;cursor:pointer;color:var(--text-2);font-family:'Geist',sans-serif">↻ Synchronizovat</button>
+  </div>
+  <div class="content" id="main-content"></div>
+</div>
+
+<!-- NOTE MODAL -->
+<div class="overlay" id="note-overlay" onclick="handleNoteOverlay(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title-row">
+        <input class="title-input" id="note-title" type="text" placeholder="Název promptu...">
+        <button class="modal-close-x" onclick="closeNoteModal()">✕</button>
+      </div>
+      <div class="modal-meta-bar" id="modal-meta-bar">
+        <div class="select-wrap" id="folder-select-wrap">
+          <button class="select-btn" id="folder-select-btn" onclick="toggleDropdown(event,'folder-dropdown')">📁 <span id="folder-select-label">Složka</span> ▾</button>
+          <div class="select-dropdown" id="folder-dropdown"></div>
+        </div>
+        <div class="select-wrap" id="tag-select-wrap">
+          <button class="select-btn" id="tag-select-btn" onclick="toggleDropdown(event,'tag-dropdown')"># <span id="tag-select-label">Štítek</span> ▾</button>
+          <div class="select-dropdown" id="tag-dropdown"></div>
+        </div>
+        <div class="tags-wrap" id="tags-wrap"></div>
+        <!-- Visibility toggle -->
+        <div class="vis-toggle" id="vis-toggle">
+          <button class="vis-opt" id="vis-private" onclick="setVisibility('private')">🔒 Soukromý</button>
+          <button class="vis-opt" id="vis-shared" onclick="setVisibility('shared')">🔗 Sdílený</button>
+        </div>
+        <div class="fmt-sep-v"></div>
+        <button class="fmt-btn" onclick="fmt('bold')" title="Tučný"><b>B</b></button>
+        <button class="fmt-btn" onclick="fmt('italic')" title="Kurzíva"><em style="font-family:Georgia;font-size:13px">I</em></button>
+        <button class="fmt-btn" onclick="fmt('underline')" title="Podtržení"><u>U</u></button>
+        <div class="fmt-sep-v"></div>
+        <button class="fmt-btn" onclick="fmt('insertUnorderedList')" title="Odrážky">≡</button>
+        <button class="fmt-btn" onclick="fmt('insertOrderedList')" title="Čísl.">①</button>
+        <div class="fmt-sep-v"></div>
+        <button class="add-code-btn" onclick="addCodeBlock()" title="Přidat kódový blok">&lt;/&gt;</button>
+      </div>
+    </div>
+    <div class="editor-scroll" id="editor-scroll"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="saveNote()">Uložit</button>
+      <button class="btn btn-ghost" onclick="closeNoteModal()">Zrušit</button>
+      <span class="kbd">Ctrl+S</span>
+      <div class="note-author-info" id="note-author-info" style="display:none">
+        <div class="note-author-dot" id="note-author-dot"></div>
+        <span id="note-author-name"></span>
+      </div>
+      <div class="spacer"></div>
+      <button class="btn btn-archive" id="archive-btn" onclick="toggleArchive()">🗄 Archivovat</button>
+      <button class="btn btn-danger" id="delete-note-btn" onclick="deleteNote()" style="display:none">🗑 Smazat</button>
+    </div>
+  </div>
+</div>
+
+<!-- FOLDER / TAG MODAL -->
+<div class="overlay" id="item-overlay" onclick="handleItemOverlay(event)">
+  <div class="modal modal-sm">
+    <div class="modal-header" style="padding:18px 20px 14px">
+      <input class="title-input" id="item-name-input" type="text" style="font-size:16px">
+    </div>
+    <div style="padding:6px 20px 14px">
+      <input class="folder-input" id="item-parent-display" type="text" readonly>
+    </div>
+    <div class="modal-footer" style="padding:11px 20px">
+      <button class="btn btn-primary" id="item-save-btn" onclick="saveItem()">Vytvořit</button>
+      <button class="btn btn-ghost" onclick="closeItemModal()">Zrušit</button>
+      <div class="spacer"></div>
+      <button class="btn btn-danger" id="item-delete-btn" onclick="deleteItem()" style="display:none">🗑 Smazat</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+let state = { folders:[], tags:[], notes:[] };
+let ui = {
+  currentView:'all', sidebarOpen:true,
+  editingNoteId:null, editingNoteFolderId:null, editingNoteTagIds:[],
+  editingArchived:false, editingVisibility:'private',
+  expandedFolders:new Set(), expandedTags:new Set(),
+  itemType:null, itemEditingId:null, itemParentId:null,
+};
+let editorBlocks = [];
+
+// Auth state
+let currentUser = null;   // { id, email, name, color }
+let authToken   = null;
+let allUsers    = {};     // id → { name, color }
+
+// Supabase config
+let sb = { url:'', key:'' };
+
+// ══════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════
+function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function formatDate(ts) { const d=new Date(ts); return `${d.getDate()}. ${d.getMonth()+1}. ${d.getFullYear()}`; }
+function toast(msg,dur=2200) { const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),dur); }
+
+// deterministic color from string
+function strColor(s) {
+  const palette=['#2563eb','#7c3aed','#db2777','#ea580c','#16a34a','#0891b2','#9333ea','#dc2626'];
+  let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0;
+  return palette[h%palette.length];
+}
+function initials(name) { if(!name) return '?'; const p=name.trim().split(/\s+/); return (p[0][0]+(p[1]?p[1][0]:'')).toUpperCase(); }
+
+function avatarHtml(userId, size=20) {
+  const u = allUsers[userId]||{name:'?',color:'#9ca3af'};
+  return `<div class="note-author-avatar" style="width:${size}px;height:${size}px;background:${u.color};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:${Math.floor(size*.45)}px;font-weight:700;color:white;flex-shrink:0" title="${u.name}">${initials(u.name)}</div>`;
+}
+
+// ══════════════════════════════════════════
+//  SUPABASE LOW-LEVEL
+// ══════════════════════════════════════════
+function sbHeaders(extra={}) {
+  const h = { 'Content-Type':'application/json', apikey:sb.key, Authorization:`Bearer ${authToken||sb.key}`, ...extra };
+  return h;
+}
+
+async function sbFetch(path, opts={}) {
+  const r = await fetch(sb.url+'/rest/v1/'+path, { ...opts, headers:sbHeaders(opts.headers||{}) });
+  if (!r.ok) { const t=await r.text(); throw new Error(`Supabase ${r.status}: ${t}`); }
+  if (r.status===204||r.headers.get('content-length')==='0') return null;
+  const text=await r.text(); return text?JSON.parse(text):null;
+}
+
+async function sbAuthFetch(path, body) {
+  const r = await fetch(sb.url+'/auth/v1/'+path, {
+    method:'POST', headers:{ 'Content-Type':'application/json', apikey:sb.key },
+    body:JSON.stringify(body)
+  });
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error_description||data.msg||'Chyba přihlášení');
+  return data;
+}
+
+async function sbUpsert(table, rows) {
+  if (!rows.length) return;
+  await sbFetch(`${table}?on_conflict=id`, { method:'POST', body:JSON.stringify(rows), headers:{Prefer:'resolution=merge-duplicates,return=minimal'} });
+}
+
+async function sbDeleteMissing(table, ids, extraFilter='') {
+  const filter = ids.length
+    ? `${table}?id=not.in.(${ids.map(i=>`"${i}"`).join(',')})${extraFilter}`
+    : `${table}?id=neq.null${extraFilter}`;
+  await sbFetch(filter, { method:'DELETE', headers:{Prefer:'return=minimal'} });
+}
+
+// ══════════════════════════════════════════
+//  LOGIN / AUTH
+// ══════════════════════════════════════════
+let loginMode = 'login'; // 'login' | 'register'
+
+function loadSbConfig() {
+  const c = localStorage.getItem('pn_sb_cfg');
+  if (c) { const p=JSON.parse(c); sb.url=p.url||''; sb.key=p.key||''; }
+}
+
+function updateLoginSbUI() {
+  const hasConfig = sb.url && sb.key;
+  document.getElementById('login-sb-fields').style.display = hasConfig?'none':'flex';
+  const connected = document.getElementById('login-sb-connected');
+  connected.style.display = hasConfig?'flex':'none';
+  if (hasConfig) document.getElementById('login-sb-url-label').textContent = sb.url.replace('https://','');
+}
+
+async function saveSbFromLogin() {
+  const url = document.getElementById('ls-url').value.trim().replace(/\/+$/,'');
+  const key = document.getElementById('ls-key').value.trim();
+  if (!url||!key) { showLoginErr('Vyplň URL i klíč.'); return; }
+  // quick test
+  try {
+    const r = await fetch(`${url}/rest/v1/prompty_notes?select=id&limit=1`,{headers:{apikey:key,Authorization:`Bearer ${key}`}});
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    sb.url=url; sb.key=key;
+    localStorage.setItem('pn_sb_cfg',JSON.stringify({url,key}));
+    updateLoginSbUI();
+  } catch(e) { showLoginErr('Nelze se připojit: '+e.message); }
+}
+
+function resetSbFromLogin() {
+  sb={url:'',key:''}; localStorage.removeItem('pn_sb_cfg'); updateLoginSbUI();
+}
+
+function toggleLoginMode() {
+  loginMode = loginMode==='login'?'register':'login';
+  const isReg = loginMode==='register';
+  document.getElementById('login-title').textContent = isReg?'Registrovat se':'Přihlásit se';
+  document.getElementById('login-sub').textContent = isReg?'Vytvoř nový účet':'Pokračuj do svého účtu';
+  document.getElementById('login-name').style.display = isReg?'block':'none';
+  document.getElementById('login-name-label').style.display = isReg?'block':'none';
+  document.getElementById('login-submit-btn').textContent = isReg?'Registrovat se':'Přihlásit se';
+  document.getElementById('login-toggle-text').textContent = isReg?'Máš účet?':'Nemáš účet?';
+  document.getElementById('login-toggle-link').textContent = isReg?'Přihlásit se':'Registrovat se';
+  document.getElementById('login-err').classList.remove('show');
+}
+
+function showLoginErr(msg) {
+  const e=document.getElementById('login-err'); e.textContent=msg; e.classList.add('show');
+}
+
+async function doLogin() {
+  if (!sb.url||!sb.key) { showLoginErr('Nejdříve nastav Supabase připojení výše.'); return; }
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-pass').value;
+  const name  = document.getElementById('login-name').value.trim();
+  document.getElementById('login-err').classList.remove('show');
+  document.getElementById('login-submit-btn').textContent='…';
+  try {
+    let data;
+    if (loginMode==='register') {
+      if (!name) { showLoginErr('Zadej zobrazované jméno.'); document.getElementById('login-submit-btn').textContent='Registrovat se'; return; }
+      data = await sbAuthFetch('signup', { email, password:pass, data:{ display_name:name } });
+      if (data.user && !data.session) {
+        toast('Ověřovací e-mail odeslán – potvrď registraci a přihlas se.', 5000);
+        toggleLoginMode(); document.getElementById('login-submit-btn').textContent='Přihlásit se'; return;
+      }
+    } else {
+      data = await sbAuthFetch('token?grant_type=password', { email, password:pass });
+    }
+    authToken = data.access_token;
+    const meta = data.user?.user_metadata||{};
+    const displayName = meta.display_name||meta.name||email.split('@')[0];
+    currentUser = { id:data.user.id, email:data.user.email, name:displayName, color:strColor(data.user.id) };
+    localStorage.setItem('pn_session',JSON.stringify({ token:authToken, user:currentUser }));
+    await bootApp();
+  } catch(e) { showLoginErr(e.message); document.getElementById('login-submit-btn').textContent = loginMode==='login'?'Přihlásit se':'Registrovat se'; }
+}
+
+async function tryRestoreSession() {
+  loadSbConfig();
+  updateLoginSbUI();
+  const saved = localStorage.getItem('pn_session');
+  if (!saved||!sb.url||!sb.key) return false;
+  try {
+    const p = JSON.parse(saved);
+    // verify token with Supabase
+    const r = await fetch(sb.url+'/auth/v1/user', { headers:{ apikey:sb.key, Authorization:`Bearer ${p.token}` } });
+    if (!r.ok) { localStorage.removeItem('pn_session'); return false; }
+    const u = await r.json();
+    authToken = p.token;
+    const meta = u.user_metadata||{};
+    const displayName = meta.display_name||meta.name||u.email.split('@')[0];
+    currentUser = { id:u.id, email:u.email, name:displayName, color:strColor(u.id) };
+    return true;
+  } catch(e) { return false; }
+}
+
+async function signOut() {
+  if (!confirm('Odhlásit se?')) return;
+  try { await fetch(sb.url+'/auth/v1/logout',{method:'POST',headers:{apikey:sb.key,Authorization:`Bearer ${authToken}`}}); } catch(e){}
+  authToken=null; currentUser=null;
+  localStorage.removeItem('pn_session');
+  state={folders:[],tags:[],notes:[]};
+  document.getElementById('main-app').style.display='none';
+  document.getElementById('sidebar').style.display='';
+  document.getElementById('login-screen').style.display='flex';
+}
+
+async function bootApp() {
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('main-app').style.display='flex';
+  document.getElementById('sidebar').style.display='flex';
+  // allUsers: load profiles table if exists, else just self
+  allUsers[currentUser.id] = { name:currentUser.name, color:currentUser.color };
+  try {
+    const profiles = await sbFetch('prompty_profiles?select=*');
+    (profiles||[]).forEach(p=>{ allUsers[p.id]={ name:p.display_name, color:strColor(p.id) }; });
+    // upsert own profile
+    await sbUpsert('prompty_profiles',[{id:currentUser.id, display_name:currentUser.name, email:currentUser.email}]);
+  } catch(e) { /* profiles table optional */ }
+
+  loadLocalState();
+  updateSbBanner();
+  if (!ui.sidebarOpen) document.getElementById('sidebar').classList.add('collapsed');
+  renderUserChip();
+  renderFolderTree(); renderTagTree(); renderNotes();
+  await sbSync();
+}
+
+function renderUserChip() {
+  if (!currentUser) return;
+  document.getElementById('user-chip-wrap').innerHTML = `
+    <div class="user-chip">
+      <div class="user-avatar" style="background:${currentUser.color}">${initials(currentUser.name)}</div>
+      <span class="user-name">${currentUser.name}</span>
+      <button class="user-signout" onclick="signOut()" title="Odhlásit se">↩</button>
+    </div>`;
+}
+
+// ══════════════════════════════════════════
+//  PERSISTENCE (localStorage)
+// ══════════════════════════════════════════
+function loadLocalState() {
+  const key = `pn_v6_${currentUser?.id||'anon'}`;
+  const d = localStorage.getItem(key);
+  if (!d) return;
+  const p=JSON.parse(d);
+  state={ folders:p.folders||[], tags:p.tags||[], notes:p.notes||[] };
+  if (p.expandedFolders) ui.expandedFolders=new Set(p.expandedFolders);
+  if (p.expandedTags) ui.expandedTags=new Set(p.expandedTags);
+  if (p.sidebarOpen!==undefined) ui.sidebarOpen=p.sidebarOpen;
+}
+function saveState() {
+  const key = `pn_v6_${currentUser?.id||'anon'}`;
+  localStorage.setItem(key,JSON.stringify({ ...state, expandedFolders:[...ui.expandedFolders], expandedTags:[...ui.expandedTags], sidebarOpen:ui.sidebarOpen }));
+}
+
+// ══════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════
+function navTo(view) {
+  ui.currentView=view;
+  document.querySelectorAll('.sidebar-btn').forEach(b=>b.classList.remove('active'));
+  const el=document.getElementById(`nav-${view}`); if(el) el.classList.add('active');
+  updateBreadcrumb(); renderFolderTree(); renderTagTree(); renderNotes();
+}
+function navToFolder(id) { ui.currentView=id; document.querySelectorAll('.sidebar-btn').forEach(b=>b.classList.remove('active')); updateBreadcrumb(); renderFolderTree(); renderTagTree(); renderNotes(); }
+function navToTag(id)    { ui.currentView=`tag:${id}`; document.querySelectorAll('.sidebar-btn').forEach(b=>b.classList.remove('active')); updateBreadcrumb(); renderFolderTree(); renderTagTree(); renderNotes(); }
+
+function updateBreadcrumb() {
+  const bc=document.getElementById('breadcrumb');
+  if(ui.currentView==='all')    { bc.innerHTML='<span class="current">Všechny prompty</span>'; return; }
+  if(ui.currentView==='mine')   { bc.innerHTML='<span class="current">Moje prompty</span>'; return; }
+  if(ui.currentView==='shared') { bc.innerHTML='<span class="current">Sdílené prompty</span>'; return; }
+  if(ui.currentView==='archive'){ bc.innerHTML='<span class="current">Archiv</span>'; return; }
+  if(ui.currentView.startsWith('tag:')) {
+    const path=getTagPath(ui.currentView.slice(4));
+    let h=`<span class="crumb" onclick="navTo('all')">Vše</span>`;
+    path.forEach((t,i)=>{ h+=`<span class="sep">›</span>`+(i<path.length-1?`<span class="crumb" onclick="navToTag('${t.id}')">${t.name}</span>`:`<span class="current">#${t.name}</span>`); });
+    bc.innerHTML=h; return;
+  }
+  const path=getFolderPath(ui.currentView);
+  let h=`<span class="crumb" onclick="navTo('all')">Vše</span>`;
+  path.forEach((f,i)=>{ h+=`<span class="sep">›</span>`+(i<path.length-1?`<span class="crumb" onclick="navToFolder('${f.id}')">${f.name}</span>`:`<span class="current">${f.name}</span>`); });
+  bc.innerHTML=h;
+}
+function getFolderPath(id) { const p=[]; let c=state.folders.find(f=>f.id===id); while(c){p.unshift(c);c=c.parentId?state.folders.find(f=>f.id===c.parentId):null;} return p; }
+function getTagPath(id)    { const p=[]; let c=state.tags.find(t=>t.id===id); while(c){p.unshift(c);c=c.parentId?state.tags.find(t=>t.id===c.parentId):null;} return p; }
+
+function toggleSidebar() { ui.sidebarOpen=!ui.sidebarOpen; document.getElementById('sidebar').classList.toggle('collapsed',!ui.sidebarOpen); saveState(); }
+
+// ══════════════════════════════════════════
+//  TREES
+// ══════════════════════════════════════════
+function renderFolderTree() {
+  document.getElementById('folder-tree').innerHTML=state.folders.filter(f=>!f.parentId).map(f=>renderFolderNode(f,0)).join('');
+}
+function renderFolderNode(f,depth) {
+  const ch=state.folders.filter(c=>c.parentId===f.id), isOpen=ui.expandedFolders.has(f.id), isActive=ui.currentView===f.id;
+  const cnt=state.notes.filter(n=>n.folderId===f.id&&!n.archived).length;
+  let h=`<div style="padding-left:${depth*12}px"><div class="tree-row ${isActive?'active':''}" onclick="navToFolder('${f.id}')">
+    ${ch.length?`<button class="tree-toggle ${isOpen?'open':''}" onclick="event.stopPropagation();toggleFolderExpand('${f.id}')">▶</button>`:'<span style="width:14px;flex-shrink:0"></span>'}
+    <span class="tree-icon">📁</span><span class="tree-name">${f.name}</span>${cnt?`<span class="tree-cnt">${cnt}</span>`:''}
+    <div class="tree-actions">
+      <button class="tree-act-btn" onclick="event.stopPropagation();openItemModal('folder','${f.id}',true)">+</button>
+      <button class="tree-act-btn" onclick="event.stopPropagation();editItem('folder','${f.id}')">✎</button>
+    </div></div></div>`;
+  if(isOpen) h+=ch.map(c=>renderFolderNode(c,depth+1)).join('');
+  return h;
+}
+function toggleFolderExpand(id){ if(ui.expandedFolders.has(id))ui.expandedFolders.delete(id); else ui.expandedFolders.add(id); renderFolderTree(); }
+
+function renderTagTree() {
+  document.getElementById('tag-tree').innerHTML=state.tags.filter(t=>!t.parentId).map(t=>renderTagNode(t,0)).join('');
+}
+function renderTagNode(t,depth) {
+  const ch=state.tags.filter(c=>c.parentId===t.id), isOpen=ui.expandedTags.has(t.id), isActive=ui.currentView===`tag:${t.id}`;
+  const cnt=state.notes.filter(n=>(n.tagIds||[]).includes(t.id)&&!n.archived).length;
+  let h=`<div style="padding-left:${depth*12}px"><div class="tree-row ${isActive?'active':''}" onclick="navToTag('${t.id}')">
+    ${ch.length?`<button class="tree-toggle ${isOpen?'open':''}" onclick="event.stopPropagation();toggleTagExpand('${t.id}')">▶</button>`:'<span style="width:14px;flex-shrink:0"></span>'}
+    <span class="tree-icon" style="opacity:1">#</span><span class="tree-name">${t.name}</span>${cnt?`<span class="tree-cnt">${cnt}</span>`:''}
+    <div class="tree-actions">
+      <button class="tree-act-btn" onclick="event.stopPropagation();openItemModal('tag','${t.id}',true)">+</button>
+      <button class="tree-act-btn" onclick="event.stopPropagation();editItem('tag','${t.id}')">✎</button>
+    </div></div></div>`;
+  if(isOpen) h+=ch.map(c=>renderTagNode(c,depth+1)).join('');
+  return h;
+}
+function toggleTagExpand(id){ if(ui.expandedTags.has(id))ui.expandedTags.delete(id); else ui.expandedTags.add(id); renderTagTree(); }
+
+// ══════════════════════════════════════════
+//  NOTES LIST
+// ══════════════════════════════════════════
+function getVisibleNotes() {
+  let list=[...state.notes];
+  const search=document.getElementById('search-input').value.toLowerCase();
+  const sort=document.getElementById('sort-select').value;
+  if(ui.currentView==='all')    list=list.filter(n=>!n.archived);
+  else if(ui.currentView==='mine')   list=list.filter(n=>!n.archived&&n.createdBy===currentUser?.id);
+  else if(ui.currentView==='shared') list=list.filter(n=>!n.archived&&n.visibility==='shared');
+  else if(ui.currentView==='archive')list=list.filter(n=>n.archived);
+  else if(ui.currentView.startsWith('tag:')) { const tid=ui.currentView.slice(4); list=list.filter(n=>!n.archived&&(n.tagIds||[]).includes(tid)); }
+  else list=list.filter(n=>n.folderId===ui.currentView&&!n.archived);
+  if(search) list=list.filter(n=>n.title.toLowerCase().includes(search)||(n.tagIds||[]).some(tid=>{const t=state.tags.find(x=>x.id===tid);return t&&t.name.toLowerCase().includes(search);})||(n.blocks||[]).some(b=>(b.content||'').toLowerCase().includes(search)));
+  if(sort==='newest') list.sort((a,b)=>b.updated-a.updated);
+  else if(sort==='oldest') list.sort((a,b)=>a.updated-b.updated);
+  else if(sort==='alpha') list.sort((a,b)=>a.title.localeCompare(b.title,'cs'));
+  else if(sort==='alpha-desc') list.sort((a,b)=>b.title.localeCompare(a.title,'cs'));
+  return list;
+}
+
+function renderNotes() {
+  updateCounts(); renderFolderTree(); renderTagTree();
+  const list=getVisibleNotes();
+  const el=document.getElementById('main-content');
+  if(!list.length){ el.innerHTML=`<div class="empty-state"><div class="empty-icon">📝</div><div class="empty-title">Žádné prompty</div><div class="empty-sub">Vytvoř první pomocí tlačítka + Nový prompt</div></div>`; return; }
+  el.innerHTML=`<div class="notes-list">${list.map(noteRow).join('')}</div>`;
+}
+
+function noteRow(n) {
+  const hasCode=(n.blocks||[]).some(b=>b.type==='code');
+  const tagChips=(n.tagIds||[]).slice(0,3).map(tid=>{const t=state.tags.find(x=>x.id===tid);return t?`<span class="note-row-tag">#${t.name}</span>`:''}).join('');
+  const isOwn = n.createdBy===currentUser?.id;
+  const visBadge = n.visibility==='shared'
+    ? `<span class="note-vis-badge shared">sdílený</span>`
+    : (isOwn ? '' : '');
+  const authorAv = (!isOwn && n.createdBy) ? avatarHtml(n.createdBy, 20) : '';
+  return `<div class="note-row ${n.archived?'archived':''}">
+    <div class="note-row-title-area" onclick="openNoteModal('${n.id}')">
+      <span class="note-row-icon">${hasCode?'</>':'#'}</span>
+      <span class="note-row-title">${n.title||'Bez názvu'}</span>
+      <div class="note-row-tags">${tagChips}</div>
+      ${visBadge}
+      ${authorAv}
+    </div>
+    <button class="note-row-copy-btn" onclick="quickCopyCode('${n.id}',this)" title="Kopírovat kód" ${!hasCode?'data-nocode="1"':''}>&lt;/&gt;</button>
+    <span class="note-row-date">${formatDate(n.updated)}</span>
+  </div>`;
+}
+
+function updateCounts() {
+  const all=state.notes.filter(n=>!n.archived);
+  document.getElementById('nav-cnt-all').textContent=all.length;
+  document.getElementById('nav-cnt-mine').textContent=all.filter(n=>n.createdBy===currentUser?.id).length;
+  document.getElementById('nav-cnt-shared').textContent=all.filter(n=>n.visibility==='shared').length;
+  document.getElementById('nav-cnt-archive').textContent=state.notes.filter(n=>n.archived).length;
+}
+
+function quickCopyCode(noteId,btn) {
+  const note=state.notes.find(n=>n.id===noteId); if(!note) return;
+  const text=(note.blocks||[]).filter(b=>b.type==='code').map(b=>b.content||'').join('\n\n');
+  if(!text) return;
+  const ok=()=>{ btn.innerHTML='✓'; btn.classList.add('copied'); setTimeout(()=>{ btn.innerHTML='&lt;/&gt;'; btn.classList.remove('copied'); },2000); };
+  const fb=()=>{ const ta=document.createElement('textarea'); ta.value=text; ta.style.cssText='position:fixed;top:-9999px;opacity:0'; document.body.appendChild(ta); ta.focus(); ta.select(); try{document.execCommand('copy');}catch(e){} document.body.removeChild(ta); ok(); };
+  if(navigator.clipboard&&window.isSecureContext) navigator.clipboard.writeText(text).then(ok).catch(fb); else fb();
+}
+
+// ══════════════════════════════════════════
+//  NOTE MODAL
+// ══════════════════════════════════════════
+function openNoteModal(id=null) {
+  ui.editingNoteId=id; ui.editingNoteTagIds=[]; ui.editingArchived=false; ui.editingNoteFolderId=null; ui.editingVisibility='private';
+  editorBlocks=[];
+  document.getElementById('note-overlay').classList.add('open');
+  const authorInfo=document.getElementById('note-author-info');
+  authorInfo.style.display='none';
+
+  if(id) {
+    const note=state.notes.find(n=>n.id===id);
+    document.getElementById('note-title').value=note.title;
+    ui.editingNoteTagIds=[...(note.tagIds||[])];
+    ui.editingArchived=note.archived||false;
+    ui.editingNoteFolderId=note.folderId||null;
+    ui.editingVisibility=note.visibility||'private';
+    editorBlocks=(note.blocks||[]).map(b=>({...b,_id:uid()}));
+    document.getElementById('delete-note-btn').style.display='flex';
+    // show author if not own
+    if(note.createdBy && note.createdBy!==currentUser?.id) {
+      const u=allUsers[note.createdBy]||{name:'Neznámý',color:'#9ca3af'};
+      document.getElementById('note-author-dot').style.cssText=`width:16px;height:16px;border-radius:50%;background:${u.color};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:white`;
+      document.getElementById('note-author-dot').textContent=initials(u.name);
+      document.getElementById('note-author-name').textContent=u.name;
+      authorInfo.style.display='flex';
+    }
+  } else {
+    document.getElementById('note-title').value='';
+    editorBlocks=[{_id:uid(),type:'text',content:''}];
+    document.getElementById('delete-note-btn').style.display='none';
+    if(!['all','mine','shared','archive'].includes(ui.currentView)&&!ui.currentView.startsWith('tag:'))
+      ui.editingNoteFolderId=ui.currentView;
+    if(ui.currentView.startsWith('tag:'))
+      ui.editingNoteTagIds=[ui.currentView.slice(4)];
+  }
+  updateArchiveBtn(); updateVisToggle();
+  renderTagChips(); renderFolderSelectDD(); renderTagSelectDD();
+  updateFolderSelectBtn(); updateTagSelectBtn();
+  renderEditorBlocks();
+  setTimeout(()=>document.getElementById('note-title').focus(),60);
+}
+
+function closeNoteModal() { document.getElementById('note-overlay').classList.remove('open'); document.querySelectorAll('.select-dropdown').forEach(d=>d.classList.remove('open')); }
+function handleNoteOverlay(e){ if(e.target===document.getElementById('note-overlay')) closeNoteModal(); }
+function toggleArchive(){ ui.editingArchived=!ui.editingArchived; updateArchiveBtn(); }
+function updateArchiveBtn(){ const b=document.getElementById('archive-btn'); b.className=`btn btn-archive ${ui.editingArchived?'active':''}`; b.innerHTML=ui.editingArchived?'🗄 Archivováno':'🗄 Archivovat'; }
+
+function setVisibility(v) { ui.editingVisibility=v; updateVisToggle(); }
+function updateVisToggle() {
+  const vp=document.getElementById('vis-private'), vs=document.getElementById('vis-shared');
+  vp.className='vis-opt'+(ui.editingVisibility==='private'?' active-private':'');
+  vs.className='vis-opt'+(ui.editingVisibility==='shared'?' active-shared':'');
+}
+
+// ── dropdowns ──
+function toggleDropdown(e,id) {
+  e.stopPropagation();
+  const dd=document.getElementById(id), isOpen=dd.classList.contains('open');
+  document.querySelectorAll('.select-dropdown').forEach(d=>d.classList.remove('open'));
+  if(!isOpen){
+    const btn=e.target.closest('.select-btn'); if(!btn) return;
+    const rect=btn.getBoundingClientRect();
+    dd.style.top=(rect.bottom+4)+'px'; dd.style.left=rect.left+'px';
+    dd.style.minWidth=Math.max(rect.width,200)+'px';
+    dd.classList.add('open');
+    const si=dd.querySelector('.dd-search');
+    if(si){ si.value=''; filterDD(id,''); setTimeout(()=>si.focus(),30); }
+  }
+}
+function filterDD(ddId,query) {
+  const q=query.toLowerCase().trim(), list=document.getElementById(ddId)?.querySelector('.dd-list'); if(!list) return;
+  list.querySelectorAll('.fd-item').forEach(el=>el.style.display=(!q||el.textContent.toLowerCase().includes(q))?'':'none');
+  list.querySelectorAll('.fd-sep').forEach(el=>el.style.display=q?'none':'');
+}
+function renderFolderSelectDD() {
+  document.getElementById('folder-dropdown').innerHTML=`
+    <div class="dd-search-wrap"><input class="dd-search" placeholder="Hledat složku…" oninput="filterDD('folder-dropdown',this.value)" onclick="event.stopPropagation()"></div>
+    <div class="dd-list">
+      <div class="fd-item ${!ui.editingNoteFolderId?'selected':''}" onclick="selectFolder(null)">📋 Bez složky</div>
+      <div class="fd-sep"></div>${buildFolderItems(null,0)}
+    </div>`;
+}
+function buildFolderItems(pid,depth){ return state.folders.filter(f=>(f.parentId||null)===pid).map(f=>`<div class="fd-item ${ui.editingNoteFolderId===f.id?'selected':''}" style="padding-left:${10+depth*14}px" onclick="selectFolder('${f.id}')">📁 ${f.name}</div>${buildFolderItems(f.id,depth+1)}`).join(''); }
+function selectFolder(id){ ui.editingNoteFolderId=id; updateFolderSelectBtn(); renderFolderSelectDD(); document.getElementById('folder-dropdown').classList.remove('open'); }
+function updateFolderSelectBtn(){ const btn=document.getElementById('folder-select-btn'),lbl=document.getElementById('folder-select-label'); if(ui.editingNoteFolderId){const f=state.folders.find(x=>x.id===ui.editingNoteFolderId);lbl.textContent=f?f.name:'Složka';btn.classList.add('has-val');}else{lbl.textContent='Složka';btn.classList.remove('has-val');} }
+
+function renderTagSelectDD() {
+  document.getElementById('tag-dropdown').innerHTML=`
+    <div class="dd-search-wrap"><input class="dd-search" placeholder="Hledat štítek…" oninput="filterDD('tag-dropdown',this.value)" onclick="event.stopPropagation()"></div>
+    <div class="dd-list">${buildTagItems(null,0)}</div>`;
+}
+function buildTagItems(pid,depth){ return state.tags.filter(t=>(t.parentId||null)===pid).map(t=>`<div class="fd-item ${(ui.editingNoteTagIds||[]).includes(t.id)?'selected':''}" style="padding-left:${10+depth*14}px" onclick="toggleTagOnNote('${t.id}')">${(ui.editingNoteTagIds||[]).includes(t.id)?'✓ ':''} #${t.name}</div>${buildTagItems(t.id,depth+1)}`).join(''); }
+function toggleTagOnNote(id){ const arr=ui.editingNoteTagIds,idx=arr.indexOf(id); if(idx>=0)arr.splice(idx,1); else arr.push(id); renderTagChips(); renderTagSelectDD(); updateTagSelectBtn(); }
+function updateTagSelectBtn(){ const btn=document.getElementById('tag-select-btn'),lbl=document.getElementById('tag-select-label'); if(ui.editingNoteTagIds.length){const names=ui.editingNoteTagIds.map(id=>{const t=state.tags.find(x=>x.id===id);return t?t.name:''}).filter(Boolean);lbl.textContent=names.length===1?names[0]:`${names.length} štítků`;btn.classList.add('has-val');}else{lbl.textContent='Štítek';btn.classList.remove('has-val');} }
+function renderTagChips(){ document.getElementById('tags-wrap').innerHTML=(ui.editingNoteTagIds||[]).map(id=>{const t=state.tags.find(x=>x.id===id);return t?`<button class="tag-chip" onclick="toggleTagOnNote('${id}')">#${t.name} ×</button>`:''}).join(''); }
+
+document.addEventListener('click',(e)=>{ if(!e.target.closest('.select-wrap')&&!e.target.closest('.select-dropdown')) document.querySelectorAll('.select-dropdown').forEach(d=>d.classList.remove('open')); });
+
+// ── editor ──
+function renderEditorBlocks() {
+  const scroll=document.getElementById('editor-scroll'); scroll.innerHTML='';
+  editorBlocks.forEach(block=>{
+    if(block.type==='text'){
+      const div=document.createElement('div'); div.className='text-block'; div.contentEditable='true';
+      div.setAttribute('data-bid',block._id); div.setAttribute('data-placeholder','Začni psát...'); div.innerHTML=block.content;
+      div.oninput=()=>{const b=editorBlocks.find(x=>x._id===block._id);if(b)b.content=div.innerHTML;}; scroll.appendChild(div);
+    } else {
+      const wrap=document.createElement('div'); wrap.className='code-block-wrap'; const bid=block._id;
+      wrap.innerHTML=`<div class="code-header"><input class="code-lang" type="text" value="${block.lang||''}" placeholder="javascript" onchange="syncCodeLang('${bid}',this.value)"><span class="code-header-sep"></span><button class="copy-code-btn" onclick="copyCodeBlock('${bid}',this)">📋 Kopírovat</button><button class="delete-block-btn" onclick="removeBlock('${bid}')">✕</button></div><div class="code-editor" contenteditable="true" data-bid="${bid}" spellcheck="false">${block.content}</div>`;
+      const ce=wrap.querySelector('.code-editor');
+      ce.oninput=()=>{const b=editorBlocks.find(x=>x._id===bid);if(b)b.content=ce.innerText;};
+      ce.onkeydown=(e)=>{if(e.key==='Tab'){e.preventDefault();document.execCommand('insertText',false,'  ');}};
+      scroll.appendChild(wrap);
+    }
+  });
+}
+function syncCodeLang(id,lang){const b=editorBlocks.find(x=>x._id===id);if(b)b.lang=lang;}
+function addCodeBlock(){ syncAllBlocks(); editorBlocks.push({_id:uid(),type:'code',content:'',lang:''}); renderEditorBlocks(); setTimeout(()=>{const ces=document.querySelectorAll('.code-editor');if(ces.length)ces[ces.length-1].focus();},50); }
+function removeBlock(id){editorBlocks=editorBlocks.filter(b=>b._id!==id);renderEditorBlocks();}
+function syncAllBlocks(){ document.querySelectorAll('.text-block[data-bid]').forEach(el=>{const b=editorBlocks.find(x=>x._id===el.getAttribute('data-bid'));if(b)b.content=el.innerHTML;}); document.querySelectorAll('.code-editor[data-bid]').forEach(el=>{const b=editorBlocks.find(x=>x._id===el.getAttribute('data-bid'));if(b)b.content=el.innerText;}); }
+function copyCodeBlock(id,btn){ const el=document.querySelector(`.code-editor[data-bid="${id}"]`);if(!el) return; const text=el.innerText||''; const ok=()=>{btn.innerHTML='✓ Zkopírováno';btn.classList.add('copied');setTimeout(()=>{btn.innerHTML='📋 Kopírovat';btn.classList.remove('copied');},2200);}; const fb=()=>{const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;top:-9999px;opacity:0';document.body.appendChild(ta);ta.focus();ta.select();try{document.execCommand('copy');}catch(e){}document.body.removeChild(ta);ok();}; if(navigator.clipboard&&window.isSecureContext) navigator.clipboard.writeText(text).then(ok).catch(fb); else fb(); }
+function fmt(cmd){const a=document.activeElement;if(a&&a.classList.contains('text-block')){document.execCommand(cmd,false,null);a.focus();}}
+
+// ── save / delete ──
+function saveNote() {
+  syncAllBlocks();
+  const title=document.getElementById('note-title').value.trim();
+  if(!title&&editorBlocks.every(b=>!(b.content||'').trim())){closeNoteModal();return;}
+  const data={title:title||'Bez názvu',blocks:editorBlocks.map(b=>({type:b.type,content:b.content||'',lang:b.lang||''})),tagIds:ui.editingNoteTagIds,archived:ui.editingArchived,folderId:ui.editingNoteFolderId||null,visibility:ui.editingVisibility,updated:Date.now()};
+  if(ui.editingNoteId){
+    const idx=state.notes.findIndex(n=>n.id===ui.editingNoteId);
+    state.notes[idx]={...state.notes[idx],...data};
+  } else {
+    state.notes.unshift({id:uid(),...data,createdBy:currentUser?.id||null,created:Date.now()});
+  }
+  saveState(); renderNotes(); closeNoteModal(); toast('Uloženo ✓');
+  if(sb.url) sbSync();
+}
+function deleteNote(){ if(!ui.editingNoteId||!confirm('Smazat tento prompt?')) return; state.notes=state.notes.filter(n=>n.id!==ui.editingNoteId); saveState(); renderNotes(); closeNoteModal(); toast('Smazáno'); if(sb.url) sbSync(); }
+
+// ── folder / tag item modal ──
+function openItemModal(type,parentId,asChild=false){ ui.itemType=type;ui.itemEditingId=null;ui.itemParentId=asChild?parentId:null; const isF=type==='folder'; document.getElementById('item-name-input').value=''; document.getElementById('item-name-input').placeholder=isF?'Název složky...':'Název štítku...'; const list=isF?state.folders:state.tags; const parent=ui.itemParentId?list.find(x=>x.id===ui.itemParentId):null; document.getElementById('item-parent-display').value=parent?(isF?`Podsložka v: ${parent.name}`:`Podštítek v: ${parent.name}`):(isF?'Kořenová složka':'Kořenový štítek'); document.getElementById('item-delete-btn').style.display='none'; document.getElementById('item-save-btn').textContent='Vytvořit'; document.getElementById('item-overlay').classList.add('open'); setTimeout(()=>document.getElementById('item-name-input').focus(),60); }
+function editItem(type,id){ ui.itemType=type;ui.itemEditingId=id;ui.itemParentId=null; const list=type==='folder'?state.folders:state.tags; const item=list.find(x=>x.id===id); document.getElementById('item-name-input').value=item.name; document.getElementById('item-name-input').placeholder=type==='folder'?'Název složky...':'Název štítku...'; const parent=item.parentId?list.find(x=>x.id===item.parentId):null; document.getElementById('item-parent-display').value=parent?`${type==='folder'?'Podsložka':'Podštítek'} v: ${parent.name}`:(type==='folder'?'Kořenová složka':'Kořenový štítek'); document.getElementById('item-delete-btn').style.display='flex'; document.getElementById('item-save-btn').textContent='Uložit'; document.getElementById('item-overlay').classList.add('open'); }
+function closeItemModal(){document.getElementById('item-overlay').classList.remove('open');}
+function handleItemOverlay(e){if(e.target===document.getElementById('item-overlay'))closeItemModal();}
+function saveItem(){ const name=document.getElementById('item-name-input').value.trim(); if(!name) return; const list=ui.itemType==='folder'?state.folders:state.tags; if(ui.itemEditingId){list.find(x=>x.id===ui.itemEditingId).name=name;toast('Přejmenováno');}else{const ni={id:uid(),name,parentId:ui.itemParentId||null};list.push(ni);if(ui.itemParentId){if(ui.itemType==='folder')ui.expandedFolders.add(ui.itemParentId);else ui.expandedTags.add(ui.itemParentId);}toast(ui.itemType==='folder'?'Složka vytvořena':'Štítek vytvořen');} saveState(); if(ui.itemType==='folder')renderFolderTree();else renderTagTree(); closeItemModal(); if(sb.url)sbSync(); }
+function deleteItem(){ if(!ui.itemEditingId||!confirm('Smazat?')) return; if(ui.itemType==='folder'){const ids=getAllSubIds(ui.itemEditingId,state.folders);state.folders=state.folders.filter(f=>!ids.has(f.id));state.notes.forEach(n=>{if(ids.has(n.folderId))n.folderId=null;});if(ids.has(ui.currentView))navTo('all');renderFolderTree();}else{const ids=getAllSubIds(ui.itemEditingId,state.tags);state.tags=state.tags.filter(t=>!ids.has(t.id));state.notes.forEach(n=>{n.tagIds=(n.tagIds||[]).filter(id=>!ids.has(id));});if(ui.currentView.startsWith('tag:')&&ids.has(ui.currentView.slice(4)))navTo('all');renderTagTree();} saveState();renderNotes();closeItemModal();toast('Smazáno');if(sb.url)sbSync(); }
+function getAllSubIds(id,list){const ids=new Set([id]);list.filter(x=>x.parentId===id).forEach(c=>getAllSubIds(c.id,list).forEach(i=>ids.add(i)));return ids;}
+
+// ══════════════════════════════════════════
+//  EXPORT / IMPORT
+// ══════════════════════════════════════════
+function exportJSON(){ const data={folders:state.folders,tags:state.tags,notes:state.notes,exportedAt:new Date().toISOString()}; dlFile('prompty-export.json',JSON.stringify(data,null,2),'application/json'); toast('JSON exportován ✓'); }
+function exportCSV(){
+  const rows=[['ID','Název','Složka','Štítky','Viditelnost','Autor','Archivováno','Vytvořeno','Upraveno','Text','Kód']];
+  state.notes.forEach(n=>{
+    const folder=n.folderId?(state.folders.find(f=>f.id===n.folderId)?.name||''):'';
+    const tags=(n.tagIds||[]).map(id=>state.tags.find(t=>t.id===id)?.name||'').filter(Boolean).join(', ');
+    const author=allUsers[n.createdBy]?.name||n.createdBy||'';
+    const text=(n.blocks||[]).filter(b=>b.type==='text').map(b=>b.content.replace(/<[^>]+>/g,'')).join(' | ');
+    const code=(n.blocks||[]).filter(b=>b.type==='code').map(b=>`[${b.lang||'code'}] ${b.content}`).join(' | ');
+    rows.push([n.id,n.title,folder,tags,n.visibility||'private',author,n.archived?'ano':'ne',fmtISO(n.created),fmtISO(n.updated),text,code]);
+  });
+  const csv=rows.map(r=>r.map(c=>`"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  dlFile('prompty-export.csv','\uFEFF'+csv,'text/csv;charset=utf-8'); toast('CSV exportováno ✓');
+}
+function fmtISO(ts){return ts?new Date(ts).toISOString():'';}
+function dlFile(name,content,type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([content],{type})); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); }
+function importJSON(e){ const file=e.target.files[0]; if(!file) return; const reader=new FileReader(); reader.onload=ev=>{try{const d=JSON.parse(ev.target.result); if(!d.notes)throw new Error('Neplatný formát'); if(!confirm(`Import přepíše data (${d.notes.length} promptů). Pokračovat?`)) return; state.folders=d.folders||[]; state.tags=d.tags||[]; state.notes=d.notes||[]; saveState();renderFolderTree();renderTagTree();renderNotes(); toast(`Importováno ${state.notes.length} promptů ✓`);}catch(err){alert('Chyba importu: '+err.message);}}; reader.readAsText(file); e.target.value=''; }
+
+// ══════════════════════════════════════════
+//  SUPABASE SYNC
+// ══════════════════════════════════════════
+function updateSbBanner() {
+  const banner=document.getElementById('sb-banner');
+  if(sb.url&&sb.key&&currentUser){ banner.style.display='flex'; document.getElementById('sb-status-dot').style.background='#16a34a'; document.getElementById('sb-status-text').textContent='Supabase: připojeno'; }
+  else banner.style.display='none';
+}
+
+async function sbSync() {
+  if(!sb.url||!sb.key||!currentUser) return;
+  const btn=document.getElementById('sb-sync-btn'); btn.textContent='↻ Synchronizuji…'; btn.disabled=true;
+  try {
+    // Push folders & tags (shared across all users)
+    await sbUpsert('prompty_folders', state.folders.map(f=>({id:f.id,name:f.name,parent_id:f.parentId||null})));
+    await sbUpsert('prompty_tags',    state.tags.map(t=>({id:t.id,name:t.name,parent_id:t.parentId||null})));
+    // Push notes – include created_by + visibility
+    await sbUpsert('prompty_notes', state.notes.map(n=>({
+      id:n.id, title:n.title||'', blocks:JSON.stringify(n.blocks||[]),
+      tag_ids:JSON.stringify(n.tagIds||[]), folder_id:n.folderId||null,
+      archived:n.archived||false, visibility:n.visibility||'private',
+      created_by:n.createdBy||currentUser.id,
+      created:n.created||null, updated:n.updated||null
+    })));
+    // Delete: only delete own notes that were removed; never delete others'
+    const ownIds=state.notes.filter(n=>n.createdBy===currentUser.id).map(n=>n.id);
+    if(ownIds.length){
+      await sbFetch(`prompty_notes?created_by=eq.${currentUser.id}&id=not.in.(${ownIds.map(i=>`"${i}"`).join(',')})`,{method:'DELETE',headers:{Prefer:'return=minimal'}});
+    }
+    await sbDeleteMissing('prompty_folders',state.folders.map(f=>f.id));
+    await sbDeleteMissing('prompty_tags',   state.tags.map(t=>t.id));
+
+    // Pull all: own notes + shared notes from others
+    const [folders,tags,ownNotes,sharedNotes] = await Promise.all([
+      sbFetch('prompty_folders?select=*&order=created_at'),
+      sbFetch('prompty_tags?select=*&order=created_at'),
+      sbFetch(`prompty_notes?created_by=eq.${currentUser.id}&select=*`),
+      sbFetch(`prompty_notes?visibility=eq.shared&created_by=neq.${currentUser.id}&select=*`),
+    ]);
+
+    // Merge & dedupe
+    const allNotes = [...(ownNotes||[]), ...(sharedNotes||[])];
+    const seen=new Set(); const deduped=allNotes.filter(n=>seen.has(n.id)?false:seen.add(n.id));
+
+    state.folders=(folders||[]).map(f=>({id:f.id,name:f.name,parentId:f.parent_id||null}));
+    state.tags=(tags||[]).map(t=>({id:t.id,name:t.name,parentId:t.parent_id||null}));
+    state.notes=deduped.map(n=>({
+      id:n.id, title:n.title||'',
+      blocks:typeof n.blocks==='string'?JSON.parse(n.blocks):(n.blocks||[]),
+      tagIds:typeof n.tag_ids==='string'?JSON.parse(n.tag_ids):(n.tag_ids||[]),
+      folderId:n.folder_id||null, archived:n.archived||false,
+      visibility:n.visibility||'private', createdBy:n.created_by||null,
+      created:n.created||null, updated:n.updated||null
+    })).sort((a,b)=>(b.updated||0)-(a.updated||0));
+
+    // Refresh allUsers from fetched notes
+    const unknownIds=[...new Set(state.notes.map(n=>n.createdBy).filter(id=>id&&!allUsers[id]))];
+    if(unknownIds.length) {
+      try {
+        const profiles=await sbFetch(`prompty_profiles?id=in.(${unknownIds.map(i=>`"${i}"`).join(',')})`);
+        (profiles||[]).forEach(p=>{ allUsers[p.id]={name:p.display_name,color:strColor(p.id)}; });
+      } catch(e){}
+    }
+
+    saveState(); renderFolderTree(); renderTagTree(); renderNotes();
+    toast('Synchronizováno ✓');
+  } catch(err) { toast('Chyba synchronizace: '+err.message); console.error(err); }
+  btn.textContent='↻ Synchronizovat'; btn.disabled=false;
+}
+
+// ══════════════════════════════════════════
+//  KEYBOARD
+// ══════════════════════════════════════════
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){closeNoteModal();closeItemModal();} if(e.ctrlKey&&e.key==='s'){e.preventDefault();saveNote();} });
+
+// ══════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════
+(async()=>{
+  const ok=await tryRestoreSession();
+  if(ok) await bootApp();
+  else updateLoginSbUI();
+})();
+</script>
+</body>
+</html>
