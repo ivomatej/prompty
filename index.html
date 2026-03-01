@@ -233,9 +233,65 @@ body{font-family:'Geist',-apple-system,sans-serif;background:var(--bg-1);color:v
 ::-webkit-scrollbar{width:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--bg-3);border-radius:3px}
+
+/* MOBILE SIDEBAR OVERLAY */
+#sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:90;backdrop-filter:blur(2px)}
+
+/* ══ RESPONSIVE – mobil ≤680px ══ */
+@media(max-width:680px){
+  .login-box{width:calc(100vw - 32px);padding:28px 20px;border-radius:12px;gap:16px}
+
+  .sidebar{position:fixed;left:0;top:0;height:100vh;z-index:100;transform:translateX(-100%);transition:transform .25s ease;width:280px!important;min-width:280px!important;opacity:1!important;pointer-events:none}
+  .sidebar.mobile-open{transform:translateX(0);pointer-events:all}
+  .sidebar.collapsed{transform:translateX(-100%)!important;opacity:1!important}
+  #sidebar-overlay.active{display:block}
+
+  .main{width:100vw}
+
+  .topbar{height:auto;padding:10px 14px;flex-wrap:wrap;gap:8px}
+  .toggle-sidebar-btn{order:0;flex-shrink:0}
+  .breadcrumb{order:1;flex:1;min-width:0}
+  .topbar-right{order:2;width:100%;display:flex;gap:6px;padding-bottom:2px}
+  .search-wrap{flex:1}
+  .search-input{width:100%!important}
+  .sort-select{font-size:12px;padding:5px 6px;max-width:110px}
+  .btn-new{padding:6px 10px;font-size:12.5px}
+
+  #sb-banner{padding:5px 14px;font-size:11.5px}
+
+  .note-row{padding:10px 14px;gap:6px}
+  .note-row-tags{display:none}
+  .note-row-date{font-size:11px}
+
+  .overlay{padding:0!important}
+  .modal{border-radius:0!important;max-width:100vw!important;width:100vw!important;height:100vh!important;max-height:100vh!important;border:none!important}
+  .modal-sm{border-radius:16px 16px 0 0!important;max-width:100vw!important;width:100vw!important;height:auto!important;max-height:90vh!important;position:fixed;bottom:0;left:0;transform:translateY(100%)!important;transition:transform .25s ease!important;border:none!important;border-top:1px solid var(--border)!important;box-shadow:0 -8px 30px rgba(0,0,0,.12)!important}
+  .overlay.open .modal-sm{transform:translateY(0)!important}
+
+  .modal-header{padding:14px 16px 10px}
+  .title-input{font-size:17px}
+  .modal-meta-bar{flex-wrap:nowrap!important;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px;gap:5px;scrollbar-width:none}
+  .modal-meta-bar::-webkit-scrollbar{display:none}
+  .editor-scroll{padding:14px 16px}
+  .modal-footer{padding:10px 16px;gap:6px;flex-wrap:wrap}
+  .kbd{display:none}
+  .btn{padding:7px 12px;font-size:13px}
+  .note-author-info{display:none!important}
+
+  .select-dropdown{max-height:50vh!important}
+  .toast{bottom:80px;font-size:12.5px;max-width:calc(100vw - 32px);white-space:normal;text-align:center}
+}
+
+@media(min-width:681px) and (max-width:900px){
+  .search-input{width:130px}
+  .modal{max-width:98vw}
+}
 </style>
 </head>
 <body>
+
+<!-- MOBILE SIDEBAR OVERLAY -->
+<div id="sidebar-overlay" onclick="closeMobileSidebar()"></div>
 
 <!-- ── LOGIN SCREEN ── -->
 <div id="login-screen">
@@ -678,9 +734,10 @@ function navTo(view) {
   document.querySelectorAll('.sidebar-btn').forEach(b=>b.classList.remove('active'));
   const el=document.getElementById(`nav-${view}`); if(el) el.classList.add('active');
   updateBreadcrumb(); renderFolderTree(); renderTagTree(); renderNotes();
+  closeMobileSidebar();
 }
-function navToFolder(id) { ui.currentView=id; document.querySelectorAll('.sidebar-btn').forEach(b=>b.classList.remove('active')); updateBreadcrumb(); renderFolderTree(); renderTagTree(); renderNotes(); }
-function navToTag(id)    { ui.currentView=`tag:${id}`; document.querySelectorAll('.sidebar-btn').forEach(b=>b.classList.remove('active')); updateBreadcrumb(); renderFolderTree(); renderTagTree(); renderNotes(); }
+function navToFolder(id) { ui.currentView=id; document.querySelectorAll('.sidebar-btn').forEach(b=>b.classList.remove('active')); updateBreadcrumb(); renderFolderTree(); renderTagTree(); renderNotes(); closeMobileSidebar(); }
+function navToTag(id)    { ui.currentView=`tag:${id}`; document.querySelectorAll('.sidebar-btn').forEach(b=>b.classList.remove('active')); updateBreadcrumb(); renderFolderTree(); renderTagTree(); renderNotes(); closeMobileSidebar(); }
 
 function updateBreadcrumb() {
   const bc=document.getElementById('breadcrumb');
@@ -702,7 +759,31 @@ function updateBreadcrumb() {
 function getFolderPath(id) { const p=[]; let c=state.folders.find(f=>f.id===id); while(c){p.unshift(c);c=c.parentId?state.folders.find(f=>f.id===c.parentId):null;} return p; }
 function getTagPath(id)    { const p=[]; let c=state.tags.find(t=>t.id===id); while(c){p.unshift(c);c=c.parentId?state.tags.find(t=>t.id===c.parentId):null;} return p; }
 
-function toggleSidebar() { ui.sidebarOpen=!ui.sidebarOpen; document.getElementById('sidebar').classList.toggle('collapsed',!ui.sidebarOpen); saveState(); }
+function isMobile() { return window.innerWidth <= 680; }
+
+function toggleSidebar() {
+  if (isMobile()) {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    const isOpen = sidebar.classList.contains('mobile-open');
+    if (isOpen) {
+      sidebar.classList.remove('mobile-open');
+      overlay.classList.remove('active');
+    } else {
+      sidebar.classList.add('mobile-open');
+      overlay.classList.add('active');
+    }
+  } else {
+    ui.sidebarOpen = !ui.sidebarOpen;
+    document.getElementById('sidebar').classList.toggle('collapsed', !ui.sidebarOpen);
+    saveState();
+  }
+}
+
+function closeMobileSidebar() {
+  document.getElementById('sidebar').classList.remove('mobile-open');
+  document.getElementById('sidebar-overlay').classList.remove('active');
+}
 
 // ══════════════════════════════════════════
 //  TREES
