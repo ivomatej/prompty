@@ -82,7 +82,7 @@ body{font-family:'Geist',-apple-system,sans-serif;background:var(--bg-1);color:v
 .user-chip{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:var(--radius);margin-bottom:2px}
 .user-avatar{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;flex-shrink:0}
 .user-name{font-size:12.5px;font-weight:500;color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
-.user-signout{font-size:11px;color:var(--text-3);background:transparent;border:none;cursor:pointer;padding:2px 5px;border-radius:3px;transition:all .1s;flex-shrink:0}
+.user-signout{font-size:11px;color:var(--text-3);background:transparent;border:none;cursor:pointer;padding:3px 7px;border-radius:3px;transition:all .1s;flex-shrink:0;white-space:nowrap}
 .user-signout:hover{background:var(--bg-2);color:var(--red)}
 
 /* ── MAIN ── */
@@ -118,7 +118,7 @@ body{font-family:'Geist',-apple-system,sans-serif;background:var(--bg-1);color:v
 .note-row.archived{opacity:.5}
 .note-row-title-area{flex:1;display:flex;align-items:center;gap:8px;min-width:0;cursor:pointer}
 .note-row-title-area:hover .note-row-title{color:var(--blue)}
-.note-row-icon{font-size:10px;color:var(--text-3);flex-shrink:0;font-family:'Geist Mono',monospace;font-weight:600;width:20px;text-align:center}
+.note-row-icon{font-size:10px;color:var(--text-3);flex-shrink:0;font-family:'Geist Mono',monospace;font-weight:600;width:16px;text-align:center}
 .note-row-title{font-size:13.5px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;transition:color .1s}
 .note-row-tags{display:flex;gap:4px;flex-shrink:0}
 .note-row-tag{font-size:10.5px;padding:1px 6px;border-radius:10px;background:var(--bg-2);color:var(--text-3)}
@@ -155,6 +155,7 @@ body{font-family:'Geist',-apple-system,sans-serif;background:var(--bg-1);color:v
 .modal-close-x{width:28px;height:28px;border:none;background:transparent;border-radius:var(--radius);cursor:pointer;font-size:16px;color:var(--text-3);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .1s}
 .modal-close-x:hover{background:var(--bg-2);color:var(--text)}
 .modal-meta-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:0}
+.modal-fmt-bar{display:flex;align-items:center;gap:4px;padding:6px 0 0;flex-wrap:nowrap}
 /* visibility toggle in modal */
 .vis-toggle{display:flex;border:1px solid var(--border);border-radius:20px;overflow:hidden;flex-shrink:0}
 .vis-opt{font-size:11.5px;padding:3px 10px;cursor:pointer;background:transparent;border:none;font-family:'Geist',sans-serif;color:var(--text-3);transition:all .1s;white-space:nowrap}
@@ -409,6 +410,24 @@ body.modal-open{overflow:hidden}
     max-width:calc(100vw - 32px)!important;
     white-space:normal!important;text-align:center!important;
   }
+
+  /* 1. Fmt bar na druhý řádek */
+  .modal-fmt-bar{
+    padding:4px 0 2px!important;
+    border-top:1px solid var(--border)!important;
+    margin-top:4px!important;
+  }
+
+  /* 2. Footer: Zrušit vlevo, Uložit vpravo */
+  .modal-footer{justify-content:space-between!important}
+  #footer-spacer-left{display:none!important}
+  #footer-cancel-btn{order:1}
+  .btn-archive{display:none!important}
+  #footer-save-btn{order:3;margin-left:auto}
+
+  /* 5. Note row title – více doleva, skryj icon */
+  .note-row-icon{display:none!important}
+  .note-row-title{font-size:15px!important;padding-left:0!important}
 }
 
 @media(min-width:681px) and (max-width:900px){
@@ -471,6 +490,10 @@ body.modal-open{overflow:hidden}
       <div class="login-label" style="margin-top:8px">Heslo</div>
       <input class="login-input" id="login-pass" type="password" placeholder="••••••••" autocomplete="current-password" autocorrect="off" autocapitalize="none" spellcheck="false" onkeydown="if(event.key==='Enter')doLogin()">
     </div>
+    <div id="login-remember-wrap" style="display:flex;align-items:center;gap:8px;margin:-4px 0">
+      <input type="checkbox" id="login-remember" style="width:16px;height:16px;accent-color:var(--blue);cursor:pointer">
+      <label for="login-remember" style="font-size:13px;color:var(--text-2);cursor:pointer">Zapamatovat přihlášení (30 dní)</label>
+    </div>
     <button class="login-btn" id="login-submit-btn" onclick="doLogin()">Přihlásit se</button>
     <div class="login-toggle">
       <span id="login-toggle-text">Nemáš účet?</span> <a id="login-toggle-link" onclick="toggleLoginMode()">Registrovat se</a>
@@ -505,10 +528,11 @@ body.modal-open{overflow:hidden}
     </div>
   </div>
   <div class="sidebar-bottom">
+    <div id="user-chip-wrap"></div>
+    <div style="height:1px;background:var(--border);margin:4px 0 6px"></div>
     <button class="sidebar-btn" id="nav-archive" onclick="navTo('archive')">
       <span class="s-icon">🗄</span> Archiv <span class="s-cnt" id="nav-cnt-archive">0</span>
     </button>
-    <div id="user-chip-wrap"></div>
     <div style="height:1px;background:var(--border);margin:4px 0"></div>
     <div style="display:flex;flex-direction:column;gap:1px">
       <button class="sidebar-btn" onclick="exportJSON()"><span class="s-icon">⬇</span> Export JSON</button>
@@ -583,7 +607,8 @@ body.modal-open{overflow:hidden}
           <button class="vis-opt" id="vis-private" onclick="setVisibility('private')">🔒 Soukromý</button>
           <button class="vis-opt" id="vis-shared" onclick="setVisibility('shared')">🔗 Sdílený</button>
         </div>
-        <div class="fmt-sep-v"></div>
+      </div>
+      <div class="modal-fmt-bar" id="modal-fmt-bar">
         <button class="fmt-btn" onclick="fmt('bold')" title="Tučný"><b>B</b></button>
         <button class="fmt-btn" onclick="fmt('italic')" title="Kurzíva"><em style="font-family:Georgia;font-size:13px">I</em></button>
         <button class="fmt-btn" onclick="fmt('underline')" title="Podtržení"><u>U</u></button>
@@ -596,14 +621,14 @@ body.modal-open{overflow:hidden}
     </div>
     <div class="editor-scroll" id="editor-scroll"></div>
     <div class="modal-footer">
-      <button class="btn btn-primary" onclick="saveNote()">Uložit</button>
-      <button class="btn btn-ghost" onclick="closeNoteModal()">Zrušit</button>
+      <button class="btn btn-ghost" id="footer-cancel-btn" onclick="closeNoteModal()">Zrušit</button>
+      <div class="spacer" id="footer-spacer-left"></div>
+      <button class="btn btn-primary" id="footer-save-btn" onclick="saveNote()">Uložit</button>
       <span class="kbd">Ctrl+S</span>
       <div class="note-author-info" id="note-author-info" style="display:none">
         <div class="note-author-dot" id="note-author-dot"></div>
         <span id="note-author-name"></span>
       </div>
-      <div class="spacer"></div>
       <button class="btn btn-archive" id="archive-btn" onclick="toggleArchive()">🗄 Archivovat</button>
       <button class="btn btn-danger" id="delete-note-btn" onclick="deleteNote()" style="display:none">🗑 Smazat</button>
     </div>
@@ -673,7 +698,7 @@ let sb = { url:'', key:'' };
 //  HELPERS
 // ══════════════════════════════════════════
 function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
-function formatDate(ts) { const d=new Date(ts); return `${d.getDate()}. ${d.getMonth()+1}. ${d.getFullYear()}`; }
+function formatDate(ts) { const d=new Date(ts); return `${d.getDate()}.${d.getMonth()+1}.${d.getFullYear()}`; }
 function toast(msg,dur=2200) { const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),dur); }
 
 // deterministic color from string
@@ -825,7 +850,9 @@ async function doLogin() {
     const meta = data.user.user_metadata||{};
     const displayName = meta.display_name||meta.name||email.split('@')[0];
     currentUser = { id:data.user.id, email:data.user.email, name:displayName, color:strColor(data.user.id) };
-    localStorage.setItem('pn_session',JSON.stringify({ token:authToken, user:currentUser }));
+    const rememberMe = document.getElementById('login-remember')?.checked ?? false;
+    const sessionData = { token:authToken, user:currentUser, expires: rememberMe ? Date.now()+(30*24*60*60*1000) : null };
+    localStorage.setItem('pn_session', JSON.stringify(sessionData));
     await bootApp();
   } catch(e) {
     showLoginErr(e.message);
@@ -840,6 +867,8 @@ async function tryRestoreSession() {
   if (!saved||!sb.url||!sb.key) return false;
   try {
     const p = JSON.parse(saved);
+    // Zkontroluj expiraci (pokud nastavena)
+    if (p.expires && Date.now() > p.expires) { localStorage.removeItem('pn_session'); return false; }
     // verify token with Supabase
     const r = await fetch(sb.url+'/auth/v1/user', { headers:{ apikey:sb.key, Authorization:`Bearer ${p.token}` } });
     if (!r.ok) { localStorage.removeItem('pn_session'); return false; }
@@ -894,7 +923,7 @@ function renderUserChip() {
     <div class="user-chip">
       <div class="user-avatar" style="background:${currentUser.color}">${initials(currentUser.name)}</div>
       <span class="user-name">${currentUser.name}</span>
-      <button class="user-signout" onclick="signOut()" title="Odhlásit se">↩</button>
+      <button class="user-signout" onclick="signOut()" title="Odhlásit se">↩ Odhlásit</button>
     </div>`;
 }
 
