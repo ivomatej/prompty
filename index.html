@@ -551,6 +551,8 @@ async function doLogin() {
   const email = document.getElementById('login-email').value.trim();
   const pass  = document.getElementById('login-pass').value;
   const name  = document.getElementById('login-name').value.trim();
+  if (!email) { showLoginErr('Zadej e-mail.'); return; }
+  if (!pass)  { showLoginErr('Zadej heslo.'); return; }
   document.getElementById('login-err').classList.remove('show');
   document.getElementById('login-submit-btn').textContent='…';
   try {
@@ -558,20 +560,35 @@ async function doLogin() {
     if (loginMode==='register') {
       if (!name) { showLoginErr('Zadej zobrazované jméno.'); document.getElementById('login-submit-btn').textContent='Registrovat se'; return; }
       data = await sbAuthFetch('signup', { email, password:pass, data:{ display_name:name } });
+
+      // Případ A: Supabase vyžaduje potvrzení e-mailem → user je ok, session je null
       if (data.user && !data.session) {
-        toast('Ověřovací e-mail odeslán – potvrď registraci a přihlas se.', 5000);
-        toggleLoginMode(); document.getElementById('login-submit-btn').textContent='Přihlásit se'; return;
+        toast('📧 Ověřovací e-mail odeslán! Potvrď ho a pak se přihlas.', 6000);
+        toggleLoginMode();
+        document.getElementById('login-submit-btn').textContent='Přihlásit se';
+        return;
+      }
+      // Případ B: user i session jsou null (neočekávané) → zkus přímé přihlášení
+      if (!data.user || !data.session) {
+        data = await sbAuthFetch('token?grant_type=password', { email, password:pass });
       }
     } else {
       data = await sbAuthFetch('token?grant_type=password', { email, password:pass });
     }
+
+    if (!data.access_token) throw new Error('Přihlášení selhalo – zkontroluj email a heslo.');
+    if (!data.user || !data.user.id) throw new Error('Nepodařilo se načíst uživatelský účet.');
+
     authToken = data.access_token;
-    const meta = data.user?.user_metadata||{};
+    const meta = data.user.user_metadata||{};
     const displayName = meta.display_name||meta.name||email.split('@')[0];
     currentUser = { id:data.user.id, email:data.user.email, name:displayName, color:strColor(data.user.id) };
     localStorage.setItem('pn_session',JSON.stringify({ token:authToken, user:currentUser }));
     await bootApp();
-  } catch(e) { showLoginErr(e.message); document.getElementById('login-submit-btn').textContent = loginMode==='login'?'Přihlásit se':'Registrovat se'; }
+  } catch(e) {
+    showLoginErr(e.message);
+    document.getElementById('login-submit-btn').textContent = loginMode==='login'?'Přihlásit se':'Registrovat se';
+  }
 }
 
 async function tryRestoreSession() {
