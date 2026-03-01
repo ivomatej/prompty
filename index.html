@@ -282,9 +282,9 @@ body{font-family:'Geist',-apple-system,sans-serif;background:var(--bg-1);color:v
   .main{width:100vw!important}
 
   /* Topbar – jednořádkový s větším touch target */
-  .topbar{height:60px!important;padding:0 14px!important;gap:6px!important;padding-top:max(0px, env(safe-area-inset-top))!important}
-  .breadcrumb{font-size:14px!important;font-weight:600;overflow:hidden}
-  .breadcrumb .current{font-size:14px!important;max-width:calc(100vw - 120px)}
+  .topbar{min-height:54px!important;height:auto!important;padding:12px 14px!important;gap:8px!important;flex-wrap:nowrap!important;position:sticky!important;top:0!important;z-index:50!important}
+  .breadcrumb{font-size:15px!important;font-weight:600!important;overflow:hidden!important;flex:1!important}
+  .breadcrumb .current{font-size:15px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
   .breadcrumb .current{font-size:14px}
 
   /* Topbar right – skryj sort a + nový na mobilu (nahrazeno FAB) */
@@ -1259,36 +1259,47 @@ async function sbSync() {
   if(!sb.url||!sb.key||!currentUser) return;
   const btn=document.getElementById('sb-sync-btn'); btn.textContent='↻ Synchronizuji…'; btn.disabled=true;
   try {
-    // Push folders & tags (shared across all users)
-    await sbUpsert('prompty_folders', state.folders.map(f=>({id:f.id,name:f.name,parent_id:f.parentId||null})));
-    await sbUpsert('prompty_tags',    state.tags.map(t=>({id:t.id,name:t.name,parent_id:t.parentId||null})));
-    // Push notes – include created_by + visibility
-    await sbUpsert('prompty_notes', state.notes.map(n=>({
-      id:n.id, title:n.title||'', blocks:JSON.stringify(n.blocks||[]),
-      tag_ids:JSON.stringify(n.tagIds||[]), folder_id:n.folderId||null,
-      archived:n.archived||false, visibility:n.visibility||'private',
-      created_by:n.createdBy||currentUser.id,
-      created:n.created||null, updated:n.updated||null
-    })));
-    // Delete: only delete own notes that were removed; never delete others'
-    const ownIds=state.notes.filter(n=>n.createdBy===currentUser.id).map(n=>n.id);
-    if(ownIds.length){
-      await sbFetch(`prompty_notes?created_by=eq.${currentUser.id}&id=not.in.(${ownIds.map(i=>`"${i}"`).join(',')})`,{method:'DELETE',headers:{Prefer:'return=minimal'}});
-    }
-    await sbDeleteMissing('prompty_folders',state.folders.map(f=>f.id));
-    await sbDeleteMissing('prompty_tags',   state.tags.map(t=>t.id));
+    // ── KROK 1: Push vlastní lokální data do DB (upsert = insert or update) ──
+    // Složky a štítky jsou sdílené – upsertujeme vše co máme lokálně
+    if(state.folders.length)
+      await sbUpsert('prompty_folders', state.folders.map(f=>({id:f.id,name:f.name,parent_id:f.parentId||null})));
+    if(state.tags.length)
+      await sbUpsert('prompty_tags', state.tags.map(t=>({id:t.id,name:t.name,parent_id:t.parentId||null})));
 
-    // Pull all: own notes + shared notes from others
-    const [folders,tags,ownNotes,sharedNotes] = await Promise.all([
+    // Notes: upsertujeme jen ty, kde jsme autorem
+    const myLocalNotes = state.notes.filter(n=>n.createdBy===currentUser.id||!n.createdBy);
+    if(myLocalNotes.length)
+      await sbUpsert('prompty_notes', myLocalNotes.map(n=>({
+        id:n.id, title:n.title||'', blocks:JSON.stringify(n.blocks||[]),
+        tag_ids:JSON.stringify(n.tagIds||[]), folder_id:n.folderId||null,
+        archived:n.archived||false, visibility:n.visibility||'private',
+        created_by:currentUser.id,
+        created:n.created||null, updated:n.updated||null
+      })));
+
+    // ── KROK 2: Delete – smaž jen vlastní notes které lokálně chybí ──
+    // Nejdřív zjisti co je v DB jako moje
+    const dbOwn = await sbFetch(`prompty_notes?created_by=eq.${currentUser.id}&select=id`);
+    const dbOwnIds = (dbOwn||[]).map(r=>r.id);
+    const localOwnIds = new Set(myLocalNotes.map(n=>n.id));
+    const toDelete = dbOwnIds.filter(id=>!localOwnIds.has(id));
+    if(toDelete.length) {
+      await sbFetch(`prompty_notes?id=in.(${toDelete.map(i=>`"${i}"`).join(',')})`,
+        {method:'DELETE', headers:{Prefer:'return=minimal'}});
+    }
+
+    // ── KROK 3: Pull vše z DB – vlastní + sdílené od ostatních ──
+    const [folders, tags, ownNotes, sharedNotes] = await Promise.all([
       sbFetch('prompty_folders?select=*&order=created_at'),
       sbFetch('prompty_tags?select=*&order=created_at'),
-      sbFetch(`prompty_notes?created_by=eq.${currentUser.id}&select=*`),
-      sbFetch(`prompty_notes?visibility=eq.shared&created_by=neq.${currentUser.id}&select=*`),
+      sbFetch(`prompty_notes?created_by=eq.${currentUser.id}&select=*&order=updated.desc`),
+      sbFetch(`prompty_notes?visibility=eq.shared&created_by=neq.${currentUser.id}&select=*&order=updated.desc`),
     ]);
 
-    // Merge & dedupe
+    // Merge, dedupe, sort
     const allNotes = [...(ownNotes||[]), ...(sharedNotes||[])];
-    const seen=new Set(); const deduped=allNotes.filter(n=>seen.has(n.id)?false:seen.add(n.id));
+    const seen=new Set();
+    const deduped=allNotes.filter(n=>seen.has(n.id)?false:seen.add(n.id));
 
     state.folders=(folders||[]).map(f=>({id:f.id,name:f.name,parentId:f.parent_id||null}));
     state.tags=(tags||[]).map(t=>({id:t.id,name:t.name,parentId:t.parent_id||null}));
@@ -1301,7 +1312,7 @@ async function sbSync() {
       created:n.created||null, updated:n.updated||null
     })).sort((a,b)=>(b.updated||0)-(a.updated||0));
 
-    // Refresh allUsers from fetched notes
+    // Načti profily neznámých autorů
     const unknownIds=[...new Set(state.notes.map(n=>n.createdBy).filter(id=>id&&!allUsers[id]))];
     if(unknownIds.length) {
       try {
@@ -1312,7 +1323,7 @@ async function sbSync() {
 
     saveState(); renderFolderTree(); renderTagTree(); renderNotes();
     toast('Synchronizováno ✓');
-  } catch(err) { toast('Chyba synchronizace: '+err.message); console.error(err); }
+  } catch(err) { toast('Chyba: '+err.message); console.error('sbSync error:', err); }
   btn.textContent='↻ Synchronizovat'; btn.disabled=false;
 }
 
