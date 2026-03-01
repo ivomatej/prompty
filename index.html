@@ -334,7 +334,7 @@ body.modal-open{overflow:hidden}
   .note-row-title{font-size:15px!important}
   .note-row-tags{display:none!important}
   .note-row-date{font-size:12px!important}
-  .note-row-copy-btn{width:40px!important;height:40px!important;font-size:13px!important;border-radius:8px!important}
+  .note-row-copy-btn{width:40px!important;height:40px!important;font-size:13px!important;border-radius:8px!important;background:var(--bg-2)!important;border-color:var(--border)!important;color:var(--text-3)!important}
 
   /* Sync banner */
   #sb-banner{padding:6px 14px!important;font-size:12px!important}
@@ -1800,10 +1800,10 @@ function openNoteView(id) {
       lang.textContent = block.lang || 'code';
       const copyBtn = document.createElement('button');
       copyBtn.textContent = '📋 Kopírovat';
-      copyBtn.style.cssText = 'font-family:"Geist",sans-serif;font-size:13px;font-weight:500;padding:7px 14px;background:var(--blue);color:white;border:none;border-radius:6px;cursor:pointer;min-height:36px';
+      copyBtn.style.cssText = 'font-family:"Geist",sans-serif;font-size:13px;font-weight:500;padding:7px 14px;background:var(--bg-2);color:var(--text-2);border:1px solid var(--border);border-radius:6px;cursor:pointer;min-height:36px;transition:all .15s';
       copyBtn.onclick = () => {
         const text = block.content || '';
-        const ok = () => { copyBtn.textContent = '✓ Zkopírováno'; copyBtn.style.background='var(--green)'; setTimeout(()=>{copyBtn.textContent='📋 Kopírovat';copyBtn.style.background='var(--blue)'},2000); };
+        const ok = () => { copyBtn.textContent = '✓ Zkopírováno'; copyBtn.style.background='var(--green)'; setTimeout(()=>{copyBtn.textContent='📋 Kopírovat';copyBtn.style.background='var(--bg-2)'},2000); };
         if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(ok).catch(()=>fbCopy(text,ok));
         else fbCopy(text, ok);
       };
