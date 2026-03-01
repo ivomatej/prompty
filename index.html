@@ -19,7 +19,7 @@
   --sidebar-w:232px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Geist',-apple-system,sans-serif;background:var(--bg-1);color:var(--text);height:100vh;display:flex;font-size:14px;overflow:hidden}
+body{font-family:'Geist',-apple-system,sans-serif;background:var(--bg-1);color:var(--text);height:100vh;display:flex;font-size:14px;overflow:hidden;position:fixed;width:100%}
 
 /* ── LOGIN SCREEN ── */
 #login-screen{position:fixed;inset:0;background:var(--bg-1);z-index:1000;display:flex;align-items:center;justify-content:center}
@@ -249,6 +249,9 @@ body{font-family:'Geist',-apple-system,sans-serif;background:var(--bg-1);color:v
 #pull-indicator.ptr-loading .ptr-icon{animation:ptr-spin .7s linear infinite}
 @keyframes ptr-spin{to{transform:rotate(360deg)}}
 
+/* iOS modal open state */
+body.modal-open{overflow:hidden}
+
 /* MOBILE SIDEBAR OVERLAY */
 #sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:95;-webkit-tap-highlight-color:transparent}
 
@@ -278,11 +281,11 @@ body{font-family:'Geist',-apple-system,sans-serif;background:var(--bg-1);color:v
   /* Toggle btn – větší tap target */
   .toggle-sidebar-btn{width:44px!important;height:44px!important;font-size:20px!important;color:var(--text)!important}
 
-  /* Main area */
-  .main{width:100vw!important}
+  /* Main area – sidebar je fixed, main zabírá vše */
+  .main{width:100vw!important;margin-left:0!important;flex:1!important}
 
   /* Topbar – jednořádkový s větším touch target */
-  .topbar{min-height:54px!important;height:auto!important;padding:12px 14px!important;gap:8px!important;flex-wrap:nowrap!important;position:sticky!important;top:0!important;z-index:50!important}
+  .topbar{min-height:52px!important;height:auto!important;padding:10px 14px!important;gap:8px!important;flex-wrap:nowrap!important;background:var(--bg)!important;border-bottom:1px solid var(--border)!important;flex-shrink:0!important}
   .breadcrumb{font-size:15px!important;font-weight:600!important;overflow:hidden!important;flex:1!important}
   .breadcrumb .current{font-size:15px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
   .breadcrumb .current{font-size:14px}
@@ -690,13 +693,22 @@ function avatarHtml(userId, size=20) {
 //  SUPABASE LOW-LEVEL
 // ══════════════════════════════════════════
 function sbHeaders(extra={}) {
-  const h = { 'Content-Type':'application/json', apikey:sb.key, Authorization:`Bearer ${authToken||sb.key}`, ...extra };
+  // authToken může expirovat – vždy zkus načíst čerstvý z session
+  let token = authToken;
+  if (!token) {
+    try { const s=localStorage.getItem('pn_session'); if(s) token=JSON.parse(s).token; } catch(e){}
+  }
+  const h = { 'Content-Type':'application/json', apikey:sb.key, Authorization:`Bearer ${token||sb.key}`, ...extra };
   return h;
 }
 
 async function sbFetch(path, opts={}) {
   const r = await fetch(sb.url+'/rest/v1/'+path, { ...opts, headers:sbHeaders(opts.headers||{}) });
-  if (!r.ok) { const t=await r.text(); throw new Error(`Supabase ${r.status}: ${t}`); }
+  if (!r.ok) {
+    const t=await r.text();
+    console.error('sbFetch error:', opts.method||'GET', path, r.status, t);
+    throw new Error(`Supabase ${r.status} ${opts.method||'GET'} ${path.split('?')[0]}: ${t}`);
+  }
   if (r.status===204||r.headers.get('content-length')==='0') return null;
   const text=await r.text(); return text?JSON.parse(text):null;
 }
@@ -945,7 +957,7 @@ function toggleSidebar() {
     } else {
       sidebar.classList.add('mobile-open');
       overlay.classList.add('active');
-      document.body.style.overflow = 'hidden';
+      document.body.classList.add('modal-open');
     }
   } else {
     ui.sidebarOpen = !ui.sidebarOpen;
@@ -957,7 +969,7 @@ function toggleSidebar() {
 function closeMobileSidebar() {
   document.getElementById('sidebar').classList.remove('mobile-open');
   document.getElementById('sidebar-overlay').classList.remove('active');
-  document.body.style.overflow = '';
+  document.body.classList.remove('modal-open');
 }
 
 function syncMobileSearch(val) {
@@ -1212,7 +1224,7 @@ function saveNote() {
     state.notes.unshift({id:uid(),...data,createdBy:currentUser?.id||null,created:Date.now()});
   }
   saveState(); renderNotes(); closeNoteModal(); toast('Uloženo ✓');
-  if(sb.url) sbSync();
+  if(sb.url && sb.key) sbSync().catch(e=>console.error('sync error:',e));
 }
 function deleteNote(){ if(!ui.editingNoteId||!confirm('Smazat tento prompt?')) return; state.notes=state.notes.filter(n=>n.id!==ui.editingNoteId); saveState(); renderNotes(); closeNoteModal(); toast('Smazáno'); if(sb.url) sbSync(); }
 
@@ -1256,53 +1268,77 @@ function updateSbBanner() {
 }
 
 async function sbSync() {
-  if(!sb.url||!sb.key||!currentUser) return;
-  const btn=document.getElementById('sb-sync-btn'); btn.textContent='↻ Synchronizuji…'; btn.disabled=true;
+  if(!sb.url||!sb.key||!currentUser) { console.log('sbSync skip: missing config or user'); return; }
+  const btn=document.getElementById('sb-sync-btn');
+  if(btn){ btn.textContent='↻ Synchronizuji…'; btn.disabled=true; }
   try {
-    // ── KROK 1: Push vlastní lokální data do DB (upsert = insert or update) ──
-    // Složky a štítky jsou sdílené – upsertujeme vše co máme lokálně
-    if(state.folders.length)
-      await sbUpsert('prompty_folders', state.folders.map(f=>({id:f.id,name:f.name,parent_id:f.parentId||null})));
-    if(state.tags.length)
-      await sbUpsert('prompty_tags', state.tags.map(t=>({id:t.id,name:t.name,parent_id:t.parentId||null})));
-
-    // Notes: upsertujeme jen ty, kde jsme autorem
-    const myLocalNotes = state.notes.filter(n=>n.createdBy===currentUser.id||!n.createdBy);
-    if(myLocalNotes.length)
-      await sbUpsert('prompty_notes', myLocalNotes.map(n=>({
-        id:n.id, title:n.title||'', blocks:JSON.stringify(n.blocks||[]),
-        tag_ids:JSON.stringify(n.tagIds||[]), folder_id:n.folderId||null,
-        archived:n.archived||false, visibility:n.visibility||'private',
-        created_by:currentUser.id,
-        created:n.created||null, updated:n.updated||null
-      })));
-
-    // ── KROK 2: Delete – smaž jen vlastní notes které lokálně chybí ──
-    // Nejdřív zjisti co je v DB jako moje
-    const dbOwn = await sbFetch(`prompty_notes?created_by=eq.${currentUser.id}&select=id`);
-    const dbOwnIds = (dbOwn||[]).map(r=>r.id);
-    const localOwnIds = new Set(myLocalNotes.map(n=>n.id));
-    const toDelete = dbOwnIds.filter(id=>!localOwnIds.has(id));
-    if(toDelete.length) {
-      await sbFetch(`prompty_notes?id=in.(${toDelete.map(i=>`"${i}"`).join(',')})`,
-        {method:'DELETE', headers:{Prefer:'return=minimal'}});
+    // Obnov token pokud expiroval
+    if(!authToken) {
+      try {
+        const s=localStorage.getItem('pn_session');
+        if(s) authToken=JSON.parse(s).token;
+      } catch(e){}
     }
-
-    // ── KROK 3: Pull vše z DB – vlastní + sdílené od ostatních ──
-    const [folders, tags, ownNotes, sharedNotes] = await Promise.all([
+    console.log('sbSync start, user:', currentUser.id, 'hasToken:', !!authToken);
+    // ── KROK 1: PULL nejdřív – zjisti aktuální stav DB ──
+    // Tím zabráníme přepsání dat jiného uživatele
+    const [foldersDB, tagsDB, ownNotesDB, sharedNotesDB] = await Promise.all([
       sbFetch('prompty_folders?select=*&order=created_at'),
       sbFetch('prompty_tags?select=*&order=created_at'),
       sbFetch(`prompty_notes?created_by=eq.${currentUser.id}&select=*&order=updated.desc`),
       sbFetch(`prompty_notes?visibility=eq.shared&created_by=neq.${currentUser.id}&select=*&order=updated.desc`),
     ]);
 
-    // Merge, dedupe, sort
-    const allNotes = [...(ownNotes||[]), ...(sharedNotes||[])];
+    // ── KROK 2: Merge DB dat s lokálními (local wins pro vlastní, DB wins pro cizí) ──
+    // Vlastní lokální poznámky – tyto chceme pushnout do DB
+    const myLocalNotes = state.notes.filter(n=>(n.createdBy===currentUser.id)||!n.createdBy);
+
+    // ── KROK 3: Push vlastní lokální data do DB ──
+    if(state.folders.length)
+      await sbUpsert('prompty_folders', state.folders.map(f=>({id:f.id,name:f.name,parent_id:f.parentId||null})));
+    if(state.tags.length)
+      await sbUpsert('prompty_tags', state.tags.map(t=>({id:t.id,name:t.name,parent_id:t.parentId||null})));
+    if(myLocalNotes.length) {
+      const rows = myLocalNotes.map(n=>({
+        id:n.id, title:n.title||'',
+        blocks:JSON.stringify(n.blocks||[]),
+        tag_ids:JSON.stringify(n.tagIds||[]),
+        folder_id:n.folderId||null,
+        archived:n.archived||false,
+        visibility:n.visibility||'private',
+        created_by:currentUser.id,
+        created:n.created||Date.now(),
+        updated:n.updated||Date.now()
+      }));
+      console.log('Pushing notes:', rows.length, rows.map(r=>r.title));
+      await sbUpsert('prompty_notes', rows);
+    }
+
+    // ── KROK 4: Smaž jen vlastní notes které lokálně chybí ──
+    const dbOwnIds=(ownNotesDB||[]).map(r=>r.id);
+    const localOwnIds=new Set(myLocalNotes.map(n=>n.id));
+    const toDelete=dbOwnIds.filter(id=>!localOwnIds.has(id));
+    if(toDelete.length) {
+      console.log('Deleting removed notes:', toDelete);
+      await sbFetch(`prompty_notes?id=in.(${toDelete.map(i=>`"${i}"`).join(',')})`,
+        {method:'DELETE', headers:{Prefer:'return=minimal'}});
+    }
+
+    // ── KROK 5: Pull znovu aby byly aktuální data (včetně nově pushnutých) ──
+    const [folders2, tags2, ownNotes2, sharedNotes2] = await Promise.all([
+      sbFetch('prompty_folders?select=*&order=created_at'),
+      sbFetch('prompty_tags?select=*&order=created_at'),
+      sbFetch(`prompty_notes?created_by=eq.${currentUser.id}&select=*&order=updated.desc`),
+      sbFetch(`prompty_notes?visibility=eq.shared&created_by=neq.${currentUser.id}&select=*&order=updated.desc`),
+    ]);
+
+    const allNotes=[...(ownNotes2||[]),...(sharedNotes2||[])];
     const seen=new Set();
     const deduped=allNotes.filter(n=>seen.has(n.id)?false:seen.add(n.id));
+    console.log('After sync, total notes:', deduped.length);
 
-    state.folders=(folders||[]).map(f=>({id:f.id,name:f.name,parentId:f.parent_id||null}));
-    state.tags=(tags||[]).map(t=>({id:t.id,name:t.name,parentId:t.parent_id||null}));
+    state.folders=(folders2||[]).map(f=>({id:f.id,name:f.name,parentId:f.parent_id||null}));
+    state.tags=(tags2||[]).map(t=>({id:t.id,name:t.name,parentId:t.parent_id||null}));
     state.notes=deduped.map(n=>({
       id:n.id, title:n.title||'',
       blocks:typeof n.blocks==='string'?JSON.parse(n.blocks):(n.blocks||[]),
@@ -1323,8 +1359,11 @@ async function sbSync() {
 
     saveState(); renderFolderTree(); renderTagTree(); renderNotes();
     toast('Synchronizováno ✓');
-  } catch(err) { toast('Chyba: '+err.message); console.error('sbSync error:', err); }
-  btn.textContent='↻ Synchronizovat'; btn.disabled=false;
+  } catch(err) {
+    console.error('sbSync error:', err);
+    toast('Chyba sync: '+err.message);
+  }
+  if(btn){ btn.textContent='↻ Synchronizovat'; btn.disabled=false; }
 }
 
 // ══════════════════════════════════════════
@@ -1390,7 +1429,7 @@ function openNoteView(id) {
   const overlay = document.getElementById('mobile-note-overlay');
   overlay.style.display = 'flex';
   requestAnimationFrame(()=>overlay.classList.add('open'));
-  document.body.style.overflow = 'hidden';
+  document.body.classList.add('modal-open');
 }
 
 function fbCopy(text, ok) {
@@ -1404,7 +1443,7 @@ function closeMobileNote() {
   const overlay = document.getElementById('mobile-note-overlay');
   overlay.classList.remove('open');
   setTimeout(()=>overlay.style.display='none', 200);
-  document.body.style.overflow = '';
+  document.body.classList.remove('modal-open');
   mobileViewingNoteId = null;
 }
 
@@ -1486,7 +1525,7 @@ window.addEventListener('resize', () => {
     // switching back to desktop – restore normal sidebar
     document.getElementById('sidebar').classList.remove('mobile-open');
     document.getElementById('sidebar-overlay').classList.remove('active');
-    document.body.style.overflow = '';
+    document.body.classList.remove('modal-open');
   }
 });
 
