@@ -264,11 +264,11 @@ body{font-family:'Geist',-apple-system,sans-serif;background:var(--bg-1);color:v
     <div class="login-err" id="login-err"></div>
     <div class="login-field">
       <div class="login-label">E-mail</div>
-      <input class="login-input" id="login-email" type="email" placeholder="vas@email.cz">
+      <input class="login-input" id="login-email" type="email" placeholder="vas@email.cz" autocomplete="email" autocorrect="off" autocapitalize="none" spellcheck="false">
       <div class="login-label" style="margin-top:8px" id="login-name-label" style="display:none">Zobrazované jméno</div>
-      <input class="login-input" id="login-name" type="text" placeholder="Jan Novák" style="display:none;margin-top:4px">
+      <input class="login-input" id="login-name" type="text" placeholder="Jan Novák" style="display:none;margin-top:4px" autocorrect="off" autocapitalize="words" spellcheck="false">
       <div class="login-label" style="margin-top:8px">Heslo</div>
-      <input class="login-input" id="login-pass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+      <input class="login-input" id="login-pass" type="password" placeholder="••••••••" autocomplete="current-password" autocorrect="off" autocapitalize="none" spellcheck="false" onkeydown="if(event.key==='Enter')doLogin()">
     </div>
     <button class="login-btn" id="login-submit-btn" onclick="doLogin()">Přihlásit se</button>
     <div class="login-toggle">
@@ -549,7 +549,7 @@ function showLoginErr(msg) {
 async function doLogin() {
   if (!sb.url||!sb.key) { showLoginErr('Nejdříve nastav Supabase připojení výše.'); return; }
   const email = document.getElementById('login-email').value.trim();
-  const pass  = document.getElementById('login-pass').value;
+  const pass  = document.getElementById('login-pass').value.trim();
   const name  = document.getElementById('login-name').value.trim();
   if (!email) { showLoginErr('Zadej e-mail.'); return; }
   if (!pass)  { showLoginErr('Zadej heslo.'); return; }
