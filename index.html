@@ -1041,9 +1041,13 @@ async function bootApp() {
   try {
     const profiles = await sbFetch('prompty_profiles?select=*');
     (profiles||[]).forEach(p=>{ allUsers[p.id]={ name:p.display_name, color:p.avatar_color||strColor(p.id) }; });
-    if(allUsers[currentUser.id]?.color) currentUser.color = allUsers[currentUser.id].color;
+    // Nastav barvu vlastního profilu z DB (DB = zdroj pravdy pro barvu)
+    if(allUsers[currentUser.id]?.color) {
+      currentUser.color = allUsers[currentUser.id].color;
+      localStorage.setItem('pn_avatar_color_'+currentUser.id, currentUser.color);
+    }
     // upsert own profile
-    await sbUpsert('prompty_profiles',[{id:currentUser.id, display_name:currentUser.name, email:currentUser.email}]);
+    await sbUpsert('prompty_profiles',[{id:currentUser.id, display_name:currentUser.name, email:currentUser.email, avatar_color:currentUser.color||null}]);
   } catch(e) { /* profiles table optional */ }
 
   loadLocalState();
@@ -1144,11 +1148,13 @@ function saveAvatarColor(color) {
 }
 
 function loadAvatarColor() {
+  // Barva se načítá primárně z DB profilu v bootApp.
+  // localStorage slouží jen jako okamžitá cache před načtením DB.
   if(!currentUser) return;
-  const saved = localStorage.getItem('pn_avatar_color_'+currentUser.id);
-  if(saved) {
-    currentUser.color = saved;
-    if(allUsers[currentUser.id]) allUsers[currentUser.id].color = saved;
+  const cached = localStorage.getItem('pn_avatar_color_'+currentUser.id);
+  if(cached && cached !== 'undefined') {
+    currentUser.color = cached;
+    if(allUsers[currentUser.id]) allUsers[currentUser.id].color = cached;
   }
 }
 
@@ -1166,7 +1172,7 @@ async function saveProfileName() {
       body: JSON.stringify({ data: { display_name: newName } })
     });
     // Aktualizuj profil v tabulce
-    await sbUpsert('prompty_profiles',[{ id:currentUser.id, display_name:newName, email:currentUser.email }]);
+    await sbUpsert('prompty_profiles',[{ id:currentUser.id, display_name:newName, email:currentUser.email, avatar_color:currentUser.color||null }]);
     // Aktualizuj lokální stav
     currentUser.name = newName;
     allUsers[currentUser.id] = { name:newName, color:currentUser.color };
@@ -1658,7 +1664,7 @@ async function sbPull() {
   if(unknownIds.length) {
     try {
       const profiles=await sbFetch(`prompty_profiles?id=in.(${unknownIds.map(i=>`"${i}"`).join(',')})`);
-      (profiles||[]).forEach(p=>{ allUsers[p.id]={name:p.display_name,color:strColor(p.id)}; });
+      (profiles||[]).forEach(p=>{ allUsers[p.id]={name:p.display_name,color:p.avatar_color||strColor(p.id)}; });
     } catch(e){}
   }
   saveState(); renderFolderTree(); renderTagTree(); renderNotes();
@@ -1691,7 +1697,7 @@ async function openHistory() {
     if (unknownIds.length) {
       try {
         const profiles = await sbFetch(`prompty_profiles?id=in.(${unknownIds.map(i=>`"${i}"`).join(',')})`);
-        (profiles||[]).forEach(p => { allUsers[p.id] = {name:p.display_name, color:strColor(p.id)}; });
+        (profiles||[]).forEach(p => { allUsers[p.id] = {name:p.display_name, color:p.avatar_color||strColor(p.id)}; });
       } catch(e){}
     }
     list.innerHTML = rows.map((row, idx) => {
