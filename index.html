@@ -1803,7 +1803,7 @@ function openNoteView(id) {
       copyBtn.style.cssText = 'font-family:"Geist",sans-serif;font-size:13px;font-weight:500;padding:7px 14px;background:var(--bg-2);color:var(--text-2);border:1px solid var(--border);border-radius:6px;cursor:pointer;min-height:36px;transition:all .15s';
       copyBtn.onclick = () => {
         const text = block.content || '';
-        const ok = () => { copyBtn.textContent = '✓ Zkopírováno'; copyBtn.style.background='var(--green)'; setTimeout(()=>{copyBtn.textContent='📋 Kopírovat';copyBtn.style.background='var(--bg-2)'},2000); };
+        const ok = () => { copyBtn.textContent = '✓ Zkopírováno'; copyBtn.style.background='var(--green)'; copyBtn.style.color='white'; copyBtn.style.borderColor='var(--green)'; setTimeout(()=>{ copyBtn.textContent='📋 Kopírovat'; copyBtn.style.background='var(--bg-2)'; copyBtn.style.color='var(--text-2)'; copyBtn.style.borderColor='var(--border)'; },2000); };
         if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(ok).catch(()=>fbCopy(text,ok));
         else fbCopy(text, ok);
       };
