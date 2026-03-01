@@ -540,7 +540,7 @@ body.modal-open{overflow:hidden}
     <span id="sb-status-dot" style="width:7px;height:7px;border-radius:50%;background:#9ca3af;flex-shrink:0"></span>
     <span id="sb-status-text" style="color:var(--text-3)">Supabase</span>
     <span style="flex:1"></span>
-    <button onclick="sbSync()" id="sb-sync-btn" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:4px;background:white;cursor:pointer;color:var(--text-2);font-family:'Geist',sans-serif">↻ Synchronizovat</button>
+    <button onclick="sbPull().then(()=>toast('Synchronizováno ✓')).catch(e=>toast('Chyba: '+e.message))" id="sb-sync-btn" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:4px;background:white;cursor:pointer;color:var(--text-2);font-family:'Geist',sans-serif">↻ Synchronizovat</button>
   </div>
   <!-- Mobile search bar (shown only on mobile) -->
   <div id="mobile-search-bar">
@@ -855,6 +855,7 @@ async function tryRestoreSession() {
 async function signOut() {
   if (!confirm('Odhlásit se?')) return;
   try { await fetch(sb.url+'/auth/v1/logout',{method:'POST',headers:{apikey:sb.key,Authorization:`Bearer ${authToken}`}}); } catch(e){}
+  if(syncTimer){ clearInterval(syncTimer); syncTimer=null; }
   authToken=null; currentUser=null;
   localStorage.removeItem('pn_session');
   state={folders:[],tags:[],notes:[]};
@@ -881,7 +882,10 @@ async function bootApp() {
   if (!ui.sidebarOpen) document.getElementById('sidebar').classList.add('collapsed');
   renderUserChip();
   renderFolderTree(); renderTagTree(); renderNotes();
-  await sbSync();
+  await sbPull();
+  // Auto-refresh každých 30 sekund
+  if(syncTimer) clearInterval(syncTimer);
+  syncTimer = setInterval(()=>sbPull().catch(e=>console.error('auto-pull:',e)), 30000);
 }
 
 function renderUserChip() {
@@ -1212,29 +1216,62 @@ function copyCodeBlock(id,btn){ const el=document.querySelector(`.code-editor[da
 function fmt(cmd){const a=document.activeElement;if(a&&a.classList.contains('text-block')){document.execCommand(cmd,false,null);a.focus();}}
 
 // ── save / delete ──
-function saveNote() {
+async function saveNote() {
   syncAllBlocks();
   const title=document.getElementById('note-title').value.trim();
   if(!title&&editorBlocks.every(b=>!(b.content||'').trim())){closeNoteModal();return;}
-  const data={title:title||'Bez názvu',blocks:editorBlocks.map(b=>({type:b.type,content:b.content||'',lang:b.lang||''})),tagIds:ui.editingNoteTagIds,archived:ui.editingArchived,folderId:ui.editingNoteFolderId||null,visibility:ui.editingVisibility,updated:Date.now()};
-  if(ui.editingNoteId){
-    const idx=state.notes.findIndex(n=>n.id===ui.editingNoteId);
-    state.notes[idx]={...state.notes[idx],...data};
-  } else {
-    state.notes.unshift({id:uid(),...data,createdBy:currentUser?.id||null,created:Date.now()});
+  const now=Date.now();
+  const noteId=ui.editingNoteId||uid();
+  const row={
+    id:noteId,
+    title:title||'Bez názvu',
+    blocks:JSON.stringify(editorBlocks.map(b=>({type:b.type,content:b.content||'',lang:b.lang||''}))),
+    tag_ids:JSON.stringify(ui.editingNoteTagIds),
+    folder_id:ui.editingNoteFolderId||null,
+    archived:ui.editingArchived,
+    visibility:ui.editingVisibility||'private',
+    created_by:currentUser.id,
+    created:ui.editingNoteId?(state.notes.find(n=>n.id===ui.editingNoteId)?.created||now):now,
+    updated:now
+  };
+  closeNoteModal();
+  toast('Ukládám…');
+  try {
+    await sbUpsert('prompty_notes',[row]);
+    await sbPull();
+    toast('Uloženo ✓');
+  } catch(e) {
+    // fallback: ulož lokálně
+    const data={title:row.title,blocks:JSON.parse(row.blocks),tagIds:JSON.parse(row.tag_ids),folderId:row.folder_id,archived:row.archived,visibility:row.visibility,updated:now,createdBy:currentUser.id};
+    if(ui.editingNoteId){const idx=state.notes.findIndex(n=>n.id===ui.editingNoteId);if(idx>=0)state.notes[idx]={...state.notes[idx],...data};}
+    else state.notes.unshift({id:noteId,...data,created:now});
+    saveState(); renderNotes();
+    toast('Uloženo lokálně (sync selhal)');
+    console.error('saveNote sync error:',e);
   }
-  saveState(); renderNotes(); closeNoteModal(); toast('Uloženo ✓');
-  if(sb.url && sb.key) sbSync().catch(e=>console.error('sync error:',e));
 }
-function deleteNote(){ if(!ui.editingNoteId||!confirm('Smazat tento prompt?')) return; state.notes=state.notes.filter(n=>n.id!==ui.editingNoteId); saveState(); renderNotes(); closeNoteModal(); toast('Smazáno'); if(sb.url) sbSync(); }
+async function deleteNote() {
+  if(!ui.editingNoteId||!confirm('Smazat tento prompt?')) return;
+  const id=ui.editingNoteId;
+  closeNoteModal();
+  try {
+    await sbFetch(`prompty_notes?id=eq.${id}`,{method:'DELETE',headers:{Prefer:'return=minimal'}});
+    await sbPull();
+    toast('Smazáno');
+  } catch(e) {
+    state.notes=state.notes.filter(n=>n.id!==id);
+    saveState(); renderNotes();
+    toast('Smazáno lokálně');
+  }
+}
 
 // ── folder / tag item modal ──
 function openItemModal(type,parentId,asChild=false){ ui.itemType=type;ui.itemEditingId=null;ui.itemParentId=asChild?parentId:null; const isF=type==='folder'; document.getElementById('item-name-input').value=''; document.getElementById('item-name-input').placeholder=isF?'Název složky...':'Název štítku...'; const list=isF?state.folders:state.tags; const parent=ui.itemParentId?list.find(x=>x.id===ui.itemParentId):null; document.getElementById('item-parent-display').value=parent?(isF?`Podsložka v: ${parent.name}`:`Podštítek v: ${parent.name}`):(isF?'Kořenová složka':'Kořenový štítek'); document.getElementById('item-delete-btn').style.display='none'; document.getElementById('item-save-btn').textContent='Vytvořit'; document.getElementById('item-overlay').classList.add('open'); setTimeout(()=>document.getElementById('item-name-input').focus(),60); }
 function editItem(type,id){ ui.itemType=type;ui.itemEditingId=id;ui.itemParentId=null; const list=type==='folder'?state.folders:state.tags; const item=list.find(x=>x.id===id); document.getElementById('item-name-input').value=item.name; document.getElementById('item-name-input').placeholder=type==='folder'?'Název složky...':'Název štítku...'; const parent=item.parentId?list.find(x=>x.id===item.parentId):null; document.getElementById('item-parent-display').value=parent?`${type==='folder'?'Podsložka':'Podštítek'} v: ${parent.name}`:(type==='folder'?'Kořenová složka':'Kořenový štítek'); document.getElementById('item-delete-btn').style.display='flex'; document.getElementById('item-save-btn').textContent='Uložit'; document.getElementById('item-overlay').classList.add('open'); }
 function closeItemModal(){document.getElementById('item-overlay').classList.remove('open');}
 function handleItemOverlay(e){if(e.target===document.getElementById('item-overlay'))closeItemModal();}
-function saveItem(){ const name=document.getElementById('item-name-input').value.trim(); if(!name) return; const list=ui.itemType==='folder'?state.folders:state.tags; if(ui.itemEditingId){list.find(x=>x.id===ui.itemEditingId).name=name;toast('Přejmenováno');}else{const ni={id:uid(),name,parentId:ui.itemParentId||null};list.push(ni);if(ui.itemParentId){if(ui.itemType==='folder')ui.expandedFolders.add(ui.itemParentId);else ui.expandedTags.add(ui.itemParentId);}toast(ui.itemType==='folder'?'Složka vytvořena':'Štítek vytvořen');} saveState(); if(ui.itemType==='folder')renderFolderTree();else renderTagTree(); closeItemModal(); if(sb.url)sbSync(); }
-function deleteItem(){ if(!ui.itemEditingId||!confirm('Smazat?')) return; if(ui.itemType==='folder'){const ids=getAllSubIds(ui.itemEditingId,state.folders);state.folders=state.folders.filter(f=>!ids.has(f.id));state.notes.forEach(n=>{if(ids.has(n.folderId))n.folderId=null;});if(ids.has(ui.currentView))navTo('all');renderFolderTree();}else{const ids=getAllSubIds(ui.itemEditingId,state.tags);state.tags=state.tags.filter(t=>!ids.has(t.id));state.notes.forEach(n=>{n.tagIds=(n.tagIds||[]).filter(id=>!ids.has(id));});if(ui.currentView.startsWith('tag:')&&ids.has(ui.currentView.slice(4)))navTo('all');renderTagTree();} saveState();renderNotes();closeItemModal();toast('Smazáno');if(sb.url)sbSync(); }
+function saveItem(){ const name=document.getElementById('item-name-input').value.trim(); if(!name) return; const list=ui.itemType==='folder'?state.folders:state.tags; if(ui.itemEditingId){list.find(x=>x.id===ui.itemEditingId).name=name;toast('Přejmenováno');}else{const ni={id:uid(),name,parentId:ui.itemParentId||null};list.push(ni);if(ui.itemParentId){if(ui.itemType==='folder')ui.expandedFolders.add(ui.itemParentId);else ui.expandedTags.add(ui.itemParentId);}toast(ui.itemType==='folder'?'Složka vytvořena':'Štítek vytvořen');} saveState(); if(ui.itemType==='folder')renderFolderTree();else renderTagTree(); closeItemModal(); sbPull().catch(e=>console.error(e)); }
+function deleteItem(){ if(!ui.itemEditingId||!confirm('Smazat?')) return; if(ui.itemType==='folder'){const ids=getAllSubIds(ui.itemEditingId,state.folders);state.folders=state.folders.filter(f=>!ids.has(f.id));state.notes.forEach(n=>{if(ids.has(n.folderId))n.folderId=null;});if(ids.has(ui.currentView))navTo('all');renderFolderTree();}else{const ids=getAllSubIds(ui.itemEditingId,state.tags);state.tags=state.tags.filter(t=>!ids.has(t.id));state.notes.forEach(n=>{n.tagIds=(n.tagIds||[]).filter(id=>!ids.has(id));});if(ui.currentView.startsWith('tag:')&&ids.has(ui.currentView.slice(4)))navTo('all');renderTagTree();} saveState();renderNotes();closeItemModal();toast('Smazáno');sbPull().catch(e=>console.error(e)); }
 function getAllSubIds(id,list){const ids=new Set([id]);list.filter(x=>x.parentId===id).forEach(c=>getAllSubIds(c.id,list).forEach(i=>ids.add(i)));return ids;}
 
 // ══════════════════════════════════════════
@@ -1261,101 +1298,48 @@ function importJSON(e){ const file=e.target.files[0]; if(!file) return; const re
 // ══════════════════════════════════════════
 //  SUPABASE SYNC
 // ══════════════════════════════════════════
+let syncTimer=null;
+
 function updateSbBanner() {
   const banner=document.getElementById('sb-banner');
   if(sb.url&&sb.key&&currentUser){ banner.style.display='flex'; document.getElementById('sb-status-dot').style.background='#16a34a'; document.getElementById('sb-status-text').textContent='Supabase: připojeno'; }
   else banner.style.display='none';
 }
 
-async function sbSync() {
+// sbPull: stáhne všechna data z DB, uloží lokálně, překreslí
+// Toto je jediný způsob jak se data načítají – DB je zdroj pravdy
+async function sbPull() {
   if(!sb.url||!sb.key||!currentUser) return;
-  const btn=document.getElementById('sb-sync-btn');
-  if(btn){ btn.textContent='↻ Synchronizuji…'; btn.disabled=true; }
-  try {
-    if(!authToken) {
-      try { const s=localStorage.getItem('pn_session'); if(s) authToken=JSON.parse(s).token; } catch(e){}
-    }
-
-    // ── 1. PUSH: vlastní lokální poznámky → DB ──
-    // Upsert = přidá nové, aktualizuje změněné. Nikdy nesmaže cizí.
-    const myLocal = state.notes.filter(n=>!n.createdBy||n.createdBy===currentUser.id);
-    if(myLocal.length) {
-      await sbUpsert('prompty_notes', myLocal.map(n=>({
-        id:n.id, title:n.title||'',
-        blocks:JSON.stringify(n.blocks||[]),
-        tag_ids:JSON.stringify(n.tagIds||[]),
-        folder_id:n.folderId||null,
-        archived:n.archived||false,
-        visibility:n.visibility||'private',
-        created_by:currentUser.id,
-        created:n.created||Date.now(),
-        updated:n.updated||Date.now()
-      })));
-    }
-    if(state.folders.length)
-      await sbUpsert('prompty_folders', state.folders.map(f=>({id:f.id,name:f.name,parent_id:f.parentId||null})));
-    if(state.tags.length)
-      await sbUpsert('prompty_tags', state.tags.map(t=>({id:t.id,name:t.name,parent_id:t.parentId||null})));
-
-    // ── 2. DELETE: smaž z DB jen to, co uživatel lokálně smazal ──
-    // Bezpečné: porovnáme co je v DB jako "moje" vs co mám lokálně
-    // POUZE pokud lokální stav není úplně prázdný (první přihlášení = 0 lokálních)
-    if(myLocal.length > 0) {
-      const dbMine = await sbFetch(`prompty_notes?created_by=eq.${currentUser.id}&select=id`);
-      const dbMineIds = (dbMine||[]).map(r=>r.id);
-      const localIds = new Set(myLocal.map(n=>n.id));
-      const toDelete = dbMineIds.filter(id=>!localIds.has(id));
-      if(toDelete.length) {
-        await sbFetch(
-          `prompty_notes?id=in.(${toDelete.map(i=>`"${i}"`).join(',')})`,
-          {method:'DELETE', headers:{Prefer:'return=minimal'}}
-        );
-      }
-    }
-
-    // ── 3. PULL: stáhni vše z DB → vlastní + sdílené ──
-    const [folders, tags, ownNotes, sharedNotes] = await Promise.all([
-      sbFetch('prompty_folders?select=*&order=created_at'),
-      sbFetch('prompty_tags?select=*&order=created_at'),
-      sbFetch(`prompty_notes?created_by=eq.${currentUser.id}&select=*&order=updated.desc`),
-      sbFetch(`prompty_notes?visibility=eq.shared&created_by=neq.${currentUser.id}&select=*&order=updated.desc`),
-    ]);
-
-    const seen=new Set();
-    const allNotes=[...(ownNotes||[]),...(sharedNotes||[])]
-      .filter(n=>seen.has(n.id)?false:seen.add(n.id));
-
-    state.folders=(folders||[]).map(f=>({id:f.id,name:f.name,parentId:f.parent_id||null}));
-    state.tags=(tags||[]).map(t=>({id:t.id,name:t.name,parentId:t.parent_id||null}));
-    state.notes=allNotes.map(n=>({
-      id:n.id, title:n.title||'',
-      blocks:typeof n.blocks==='string'?JSON.parse(n.blocks):(n.blocks||[]),
-      tagIds:typeof n.tag_ids==='string'?JSON.parse(n.tag_ids):(n.tag_ids||[]),
-      folderId:n.folder_id||null,
-      archived:n.archived||false,
-      visibility:n.visibility||'private',
-      createdBy:n.created_by||null,
-      created:n.created||null,
-      updated:n.updated||null
-    })).sort((a,b)=>(b.updated||0)-(a.updated||0));
-
-    // Načti jména neznámých autorů
-    const unknownIds=[...new Set(state.notes.map(n=>n.createdBy).filter(id=>id&&!allUsers[id]))];
-    if(unknownIds.length) {
-      try {
-        const profiles=await sbFetch(`prompty_profiles?id=in.(${unknownIds.map(i=>`"${i}"`).join(',')})`);
-        (profiles||[]).forEach(p=>{ allUsers[p.id]={name:p.display_name,color:strColor(p.id)}; });
-      } catch(e){}
-    }
-
-    saveState(); renderFolderTree(); renderTagTree(); renderNotes();
-    toast('Synchronizováno ✓');
-  } catch(err) {
-    console.error('sbSync error:', err);
-    toast('Chyba sync: '+err.message);
+  if(!authToken) {
+    try { const s=localStorage.getItem('pn_session'); if(s) authToken=JSON.parse(s).token; } catch(e){}
   }
-  if(btn){ btn.textContent='↻ Synchronizovat'; btn.disabled=false; }
+  const [folders,tags,allNotes] = await Promise.all([
+    sbFetch('prompty_folders?select=*&order=created_at'),
+    sbFetch('prompty_tags?select=*&order=created_at'),
+    sbFetch('prompty_notes?select=*&order=updated.desc'),
+  ]);
+  state.folders=(folders||[]).map(f=>({id:f.id,name:f.name,parentId:f.parent_id||null}));
+  state.tags=(tags||[]).map(t=>({id:t.id,name:t.name,parentId:t.parent_id||null}));
+  state.notes=(allNotes||[]).map(n=>({
+    id:n.id, title:n.title||'',
+    blocks:typeof n.blocks==='string'?JSON.parse(n.blocks):(n.blocks||[]),
+    tagIds:typeof n.tag_ids==='string'?JSON.parse(n.tag_ids):(n.tag_ids||[]),
+    folderId:n.folder_id||null, archived:n.archived||false,
+    visibility:n.visibility||'private', createdBy:n.created_by||null,
+    created:n.created||null, updated:n.updated||null
+  }));
+  // Načti profily autorů
+  const unknownIds=[...new Set(state.notes.map(n=>n.createdBy).filter(id=>id&&!allUsers[id]))];
+  if(unknownIds.length) {
+    try {
+      const profiles=await sbFetch(`prompty_profiles?id=in.(${unknownIds.map(i=>`"${i}"`).join(',')})`);
+      (profiles||[]).forEach(p=>{ allUsers[p.id]={name:p.display_name,color:strColor(p.id)}; });
+    } catch(e){}
+  }
+  saveState(); renderFolderTree(); renderTagTree(); renderNotes();
 }
+
+async function sbSync() { return sbPull(); }
 
 // ══════════════════════════════════════════
 //  MOBILE NOTE VIEW
@@ -1497,7 +1481,7 @@ function openNoteFromMobile() {
       ind.style.height = '48px';
       document.getElementById('ptr-text').textContent = 'Synchronizuji…';
       document.getElementById('ptr-icon') // noop
-      try { await sbSync(); } catch(e){}
+      try { await sbPull(); } catch(e){ console.error(e); }
       ind.classList.remove('ptr-loading');
     }
     ind.style.height = '0';
